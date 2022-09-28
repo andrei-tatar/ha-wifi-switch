@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "*.tcc": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "memory": "cpp",
+        "random": "cpp",
+        "initializer_list": "cpp",
+        "touch_sensor.h": "c",
+        "esp32-hal-touch.h": "c",
+        "optional": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp",
+        "system_error": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "esp32-hal-timer.h": "c",
+        "timer.h": "c",
+        "soc_caps.h": "c",
+        "streambuf": "cpp",
+        "iomanip": "cpp"
+    }
+}
