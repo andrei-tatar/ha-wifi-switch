@@ -26,7 +26,7 @@ void Web::handleNotFound(AsyncWebServerRequest *req) {
 }
 
 void Web::getStatus(AsyncWebServerRequest *req) {
-  StaticJsonDocument<2048> json;
+  DynamicJsonDocument json(2048);
   json["freeHeap"] = ESP.getFreeHeap();
   json["uptimeSeconds"] = millis() / 1000;
   json["type"] = _type;

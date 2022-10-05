@@ -4,7 +4,10 @@
 #include <Arduino.h>
 #include <Ticker.h>
 
+typedef void (*DimmerStateChangedHandler)(bool on, uint8_t brightness);
+
 class Dimmer {
+  bool _initialized = false;
   int8_t _pinZero = -1, _pinTriac = -1;
   uint8_t _brightness = 100;
   uint8_t _currentBrightness = 0;
@@ -14,6 +17,9 @@ class Dimmer {
   Ticker _ticker;
   static void handle(Dimmer *instance);
   uint16_t _curve[100];
+  DimmerStateChangedHandler _handler;
+
+  void raiseStateChanged();
 
 public:
   Dimmer();
@@ -22,6 +28,7 @@ public:
 
   uint8_t getBrightness() const;
   bool isOn() const;
+  bool isInitialized() const;
 
   void toggle();
   void changeBrightness(int8_t delta);
@@ -30,6 +37,8 @@ public:
 
   void setBrightnessCurve(const uint16_t *curve);
   void setMinMax(uint8_t min, uint8_t max);
+
+  void onStateChanged(DimmerStateChangedHandler handler);
 };
 
 #endif

@@ -74,21 +74,13 @@ void Io::handle(Io *instance) {
         }
       }
 
-      for (uint8_t i = 0; i < IO_CNT; i++) {
-        ledcWrite(i, io._pressed == i ? 0 : 235);
-      }
+      io.updateLeds();
     } else if (io._pressed != -1) {
       io._lastChanged = now;
       if (io._touchPress) {
         io._touchPress(io._pressed);
       }
     }
-  }
-}
-
-void Io::setLedRed(uint8_t level) {
-  if (_ledRed != -1) {
-    ledcWrite(IO_CNT, level);
   }
 }
 
@@ -105,4 +97,23 @@ Io &Io::onTouchPress(TouchKeyHandler handler) {
 Io &Io::onTouchUp(TouchVoidHandler handler) {
   _touchUp = handler;
   return *this;
+}
+
+Io &Io::setLedLevels(uint8_t blue, uint8_t touch, uint8_t red) {
+  _levelBlue = blue;
+  _levelRed = red;
+  _levelBlueTouched = touch;
+  updateLeds();
+  return *this;
+}
+
+void Io::updateLeds() {
+  if (_ledRed != -1) {
+    ledcWrite(IO_CNT, _levelRed);
+  }
+  for (uint8_t i = 0; i < IO_CNT; i++) {
+    if (_ledPins[i] != -1) {
+      ledcWrite(i, 255 - (_pressed == i ? _levelBlueTouched : _levelBlue));
+    }
+  }
 }

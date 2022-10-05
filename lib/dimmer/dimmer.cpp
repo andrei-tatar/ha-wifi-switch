@@ -160,6 +160,8 @@ void Dimmer::begin() {
   size_t size = sizeof(program) / sizeof(ulp_insn_t);
   ulp_process_macros_and_load(load_addr, program, &size);
   ulp_run(load_addr);
+
+  _initialized = true;
 }
 
 void Dimmer::handle(Dimmer *instance) {
@@ -179,27 +181,31 @@ void Dimmer::handle(Dimmer *instance) {
   }
 }
 
-void Dimmer::toggle() { _on = !_on; }
+void Dimmer::toggle() { setOn(!_on); }
 
 uint8_t Dimmer::getBrightness() const { return _brightness; }
 
 bool Dimmer::isOn() const { return _on; }
 
 void Dimmer::changeBrightness(int8_t delta) {
-  int16_t newBrightness = _currentBrightness + delta;
-  if (newBrightness < _minBrightness) {
-    newBrightness = _minBrightness;
-  } else if (newBrightness > _maxBrightness) {
-    newBrightness = _maxBrightness;
-  }
-  _brightness = newBrightness;
+  int16_t newBrightness = max(0, _currentBrightness + delta);
+  setBrightness(newBrightness);
 }
 
 void Dimmer::setBrightness(uint8_t brightness) {
-  _brightness = max(_minBrightness, min(_maxBrightness, brightness));
+  auto newBrightness = max(_minBrightness, min(_maxBrightness, brightness));
+  if (_brightness != newBrightness) {
+    _brightness = newBrightness;
+    raiseStateChanged();
+  }
 }
 
-void Dimmer::setOn(bool on) { _on = on; }
+void Dimmer::setOn(bool on) {
+  if (_on != on) {
+    _on = on;
+    raiseStateChanged();
+  }
+}
 
 void Dimmer::setBrightnessCurve(const uint16_t *curve) {
   memcpy(_curve, curve, 100 * sizeof(uint16_t));
@@ -216,7 +222,21 @@ void Dimmer::setMinMax(uint8_t min, uint8_t max) {
 
   if (_brightness < _minBrightness) {
     _brightness = _minBrightness;
+    raiseStateChanged();
   } else if (_brightness > _maxBrightness) {
     _brightness = _maxBrightness;
+    raiseStateChanged();
   }
 }
+
+void Dimmer::onStateChanged(DimmerStateChangedHandler handler) {
+  _handler = handler;
+}
+
+void Dimmer::raiseStateChanged() {
+  if (_handler) {
+    _handler(_on, _brightness);
+  }
+}
+
+bool Dimmer::isInitialized() const { return _initialized; }
