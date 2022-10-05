@@ -164,7 +164,8 @@ void Dimmer::begin() {
 
 void Dimmer::handle(Dimmer *instance) {
   Dimmer &dimmer = *instance;
-  auto targetBrightness = dimmer._on ? dimmer._brightness : 0;
+  auto targetBrightness =
+      dimmer._on ? dimmer._brightness : dimmer._minBrightness - 1;
   if (dimmer._currentBrightness != targetBrightness) {
     if (dimmer._currentBrightness < targetBrightness)
       dimmer._currentBrightness++;
@@ -172,7 +173,7 @@ void Dimmer::handle(Dimmer *instance) {
       dimmer._currentBrightness--;
 
     RTC_SLOW_MEM[Mem_Delay] =
-        dimmer._currentBrightness
+        dimmer._on || dimmer._currentBrightness != targetBrightness
             ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
             : OFF_TICKS;
   }
@@ -202,4 +203,20 @@ void Dimmer::setOn(bool on) { _on = on; }
 
 void Dimmer::setBrightnessCurve(const uint16_t *curve) {
   memcpy(_curve, curve, 100 * sizeof(uint16_t));
+}
+
+void Dimmer::setMinMax(uint8_t min, uint8_t max) {
+  if (min < 1)
+    min = 1;
+  if (max > 100)
+    max = 100;
+
+  _minBrightness = min;
+  _maxBrightness = max;
+
+  if (_brightness < _minBrightness) {
+    _brightness = _minBrightness;
+  } else if (_brightness > _maxBrightness) {
+    _brightness = _maxBrightness;
+  }
 }

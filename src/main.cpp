@@ -1,93 +1,97 @@
 #include "dimmer.h"
 #include "io.h"
-#include "touch.h"
+#include "util.h"
+#include "web.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
-#include <WebServer.h>
+#include <Preferences.h>
 
-WebServer server(80);
 Io io;
 Dimmer dimmer;
+Preferences preferences;
+Web web(preferences, dimmer, io);
 
-#define PIN_TOUCH1 33
-#define PIN_TOUCH2 32
-#define PIN_TOUCH3 27
+void setupCommon(JsonDocument &config) {
 
-#define PIN_LED1 21
-#define PIN_LED2 22
-#define PIN_LED3 19
-#define PIN_LED_RED 23
+  bool mdnsEnabled = config["mdns"]["enabled"] | true;
+  const char *mdnsHostname = config["mdns"]["host"] | "dimmer-test";
 
-#define PIN_ZERO 26
-#define PIN_TRIAC 25
+  ArduinoOTA.setMdnsEnabled(mdnsEnabled).setHostname(mdnsHostname).begin();
 
-void addTouchData(ARDUINOJSON_NAMESPACE::ObjectRef parent, Touch &t) {
-  parent["value"] = t.getValue();
-  parent["threshold"] = t.getThreshold();
-}
+  int8_t touch1 = config["pins"]["touch"][0] | -1;
+  int8_t touch2 = config["pins"]["touch"][1] | -1;
+  int8_t touch3 = config["pins"]["touch"][2] | -1;
 
-void onGetStatus() {
-  StaticJsonDocument<1024> json;
+  int8_t led1 = config["pins"]["led"][0] | -1;
+  int8_t led2 = config["pins"]["led"][1] | -1;
+  int8_t led3 = config["pins"]["led"][2] | -1;
 
-  json["freeHeap"] = ESP.getFreeHeap();
-  json["uptimeSeconds"] = millis() / 1000;
-  json["on"] = dimmer.isOn();
-  json["brightness"] = dimmer.getBrightness();
+  int8_t ledRed = config["pins"]["redLed"] | -1;
 
-  auto touch = json.createNestedArray("touch");
-  for (uint8_t i = 0; i < IO_CNT; i++) {
-    addTouchData(touch.createNestedObject(), io.touch[i]);
-  }
-
-  String response;
-  serializeJson(json, response);
-
-  server.send(200, "application/json", response);
-}
-
-void setupDimmer();
-
-void setup() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin();
-
-  ArduinoOTA.setMdnsEnabled(true).setHostname("dimmer-test").begin();
-
-  server.on("/", onGetStatus);
-  server.begin();
-
-  setupDimmer();
-}
-
-void setupDimmer() {
-  dimmer.usePins(PIN_ZERO, PIN_TRIAC).begin();
-
-  static bool wasOff;
-
-  io.useTouchPins(PIN_TOUCH1, PIN_TOUCH2, PIN_TOUCH3)
-      .useLedPins(PIN_LED1, PIN_LED2, PIN_LED3)
-      .useRedLedPin(PIN_LED_RED)
-      .onTouchDown([](int8_t key) {
-        wasOff = !dimmer.isOn();
-        if (key == 0 || wasOff) {
-          dimmer.toggle();
-        }
-
-        if (!wasOff) {
-          dimmer.changeBrightness(key == 1 ? 1 : -1);
-        }
-      })
-      .onTouchPress([](int8_t key) {
-        if (key == 0 || wasOff) {
-          return;
-        }
-        dimmer.changeBrightness(key == 1 ? 1 : -1);
-      })
+  io.useTouchPins(touch1, touch2, touch3)
+      .useLedPins(led1, led2, led3)
+      .useRedLedPin(ledRed)
       .begin();
 }
 
-void loop() {
-  ArduinoOTA.handle();
-  server.handleClient();
+void setupDimmer(const JsonVariantConst &dimmerConfig) {
+  static bool wasOff;
+
+  int8_t zero = dimmerConfig["pins"]["zero"] | -1;
+  int8_t triac = dimmerConfig["pins"]["triac"] | -1;
+
+  dimmer.usePins(zero, triac);
+  dimmer.begin();
+
+  if (dimmerConfig.containsKey("curve")) {
+    uint16_t curve[100];
+    for (uint8_t i = 0; i < 100; i++) {
+      curve[i] = dimmerConfig["curve"].getElement(i);
+    }
+    dimmer.setBrightnessCurve(curve);
+  }
+
+  uint8_t min = dimmerConfig["min"] | 1;
+  uint8_t max = dimmerConfig["max"] | 100;
+  dimmer.setMinMax(min, max);
+
+  io.onTouchDown([](int8_t key) {
+    wasOff = !dimmer.isOn();
+    if (!key || wasOff) {
+      dimmer.toggle();
+    } else {
+      dimmer.changeBrightness(key == 1 ? 1 : -1);
+    }
+  });
+  io.onTouchPress([](int8_t key) {
+    if (key == 0 || wasOff) {
+      return;
+    }
+    dimmer.changeBrightness(key == 1 ? 1 : -1);
+  });
 }
+
+String readConfigAndInit() {
+  StaticJsonDocument<2048> config;
+  deserializeJson(config, preferences.getString(CONFIG_KEY));
+
+  setupCommon(config);
+
+  String type = config["type"].as<String>();
+  if (type == "dimmer") {
+    setupDimmer(config.getMember("dimmer"));
+  }
+  return type;
+}
+
+void setup() {
+  preferences.begin("ha-switch");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin();
+
+  auto type = readConfigAndInit();
+  web.begin(type);
+}
+
+void loop() { ArduinoOTA.handle(); }

@@ -29,6 +29,7 @@ public:
   void setOn(bool on);
 
   void setBrightnessCurve(const uint16_t *curve);
+  void setMinMax(uint8_t min, uint8_t max);
 };
 
 #endif
