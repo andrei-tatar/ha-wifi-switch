@@ -49,9 +49,9 @@ void Io::handle(Io *instance) {
   auto now = millis();
 
   for (uint8_t i = 0; i < IO_CNT; i++) {
-    if (io.touch[i].handle() && io.touch[i].pressed()) {
+    io.touch[i].handle();
+    if (pressed == -1 && io.touch[i].isPressed()) {
       pressed = i;
-      break;
     }
   }
 

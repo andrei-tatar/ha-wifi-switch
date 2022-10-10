@@ -9,19 +9,19 @@ private:
   int8_t _gpio, _channel = -1;
   uint32_t _calibrationData;
   uint8_t _samples;
-  bool _pressed, _forceCalibration;
-  uint32_t _nextMeasurement, _pressStart;
+  bool _forceCalibration, _pressed;
+  uint32_t _pressStart;
   void restartCalibration();
 
 public:
   void usePin(int8_t pin);
 
-  inline bool pressed() { return _pressed; }
-  inline touch_value_t getThreshold() { return _threshold; }
-  inline touch_value_t getValue() { return _value; }
+  touch_value_t getThreshold() const;
+  touch_value_t getValue() const;
+  bool isPressed() const;
 
   void begin();
-  bool handle();
+  void handle();
 };
 
 #endif

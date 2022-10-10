@@ -95,7 +95,9 @@ void setupDimmer(const JsonVariantConst &dimmerConfig) {
 
 String readConfigAndInit() {
   DynamicJsonDocument config(2048);
-  deserializeJson(config, preferences.getString(CONFIG_KEY));
+  if (preferences.isKey(CONFIG_KEY)) {
+    deserializeJson(config, preferences.getString(CONFIG_KEY));
+  }
 
   setupCommon(config);
 

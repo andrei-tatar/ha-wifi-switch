@@ -4,7 +4,7 @@
 
 #define TIME_BETWEEN_MEASUREMENTS MSEC(5)
 #define FORCE_CALIBRATION_IF_PRESSED_MORE_THAN SECS(30)
-#define CALIBRATION_SAMPLES 20
+#define CALIBRATION_SAMPLES 50
 #define MAX_MARGIN_SUCCESS_CALIBRATION 10
 
 void Touch::usePin(int8_t pin) {
@@ -17,29 +17,41 @@ void Touch::begin() {
     return;
   }
 
-  touchRead(_gpio); // touch is inited only after 1st read
+  static bool _generalInit = false;
 
+  if (!_generalInit) {
+    _generalInit = true;
+
+    touch_pad_init();
+    touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V8,
+                          TOUCH_HVOLT_ATTEN_1V5);
+
+    touch_pad_set_meas_time(0x1000, 0x1000);
+
+    // Touch Sensor Timer initiated
+    touch_pad_filter_start(20);
+  }
+
+  touch_pad_config((touch_pad_t)_channel, SOC_TOUCH_PAD_THRESHOLD_MAX);
   touch_pad_set_cnt_mode((touch_pad_t)_channel, TOUCH_PAD_SLOPE_MAX,
                          TOUCH_PAD_TIE_OPT_HIGH);
-  touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V8,
-                        TOUCH_HVOLT_ATTEN_1V5);
 
+  _forceCalibration = true;
   restartCalibration();
+
+  delay(15);
 }
 
-bool Touch::handle() {
+touch_value_t Touch::getThreshold() const { return _threshold; }
+touch_value_t Touch::getValue() const { return _value; }
+bool Touch::isPressed() const { return _pressed; }
+
+void Touch::handle() {
   if (_channel == -1) {
-    return false;
+    return;
   }
 
-  auto now = millis();
-  if (now >= _nextMeasurement) {
-    _nextMeasurement = now + TIME_BETWEEN_MEASUREMENTS;
-    touch_pad_read_raw_data((touch_pad_t)_channel, &_value);
-  } else {
-    return true;
-  }
-
+  touch_pad_read_filtered((touch_pad_t)_channel, &_value);
   _pressed = _value < _threshold;
 
   if (!_pressed || _forceCalibration) {
@@ -55,8 +67,9 @@ bool Touch::handle() {
 
     if (_samples == CALIBRATION_SAMPLES) {
       auto diff = _max - _min;
-      if (diff <= MAX_MARGIN_SUCCESS_CALIBRATION) {
-        auto margin = max(10, diff) * 2;
+      auto avg = _calibrationData / _samples;
+      auto margin = avg * 2 / 100;
+      if (diff <= margin) {
         _threshold = _calibrationData / _samples - margin;
         _forceCalibration = false;
       }
@@ -64,6 +77,7 @@ bool Touch::handle() {
       restartCalibration();
     }
   } else {
+    auto now = millis();
     if (!_pressStart) {
       _pressStart = now;
     }
@@ -74,8 +88,6 @@ bool Touch::handle() {
       restartCalibration();
     }
   }
-
-  return true;
 }
 
 void Touch::restartCalibration() {
