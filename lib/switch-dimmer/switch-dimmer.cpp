@@ -83,5 +83,21 @@ void SwitchDimmer::appendState(JsonVariant doc) const {
 }
 
 void SwitchDimmer::updateState(JsonVariantConst state) {
-  // TODO: update state from json
+  if (!_dimmer.isInitialized()) {
+    return;
+  }
+
+  suspendStateChanges();
+
+  auto stateOn = state["on"];
+  if (stateOn.is<bool>()) {
+    _dimmer.setOn(stateOn);
+  }
+
+  auto stateBrightness = state["brightness"];
+  if (stateBrightness.is<uint8_t>()) {
+    _dimmer.setBrightness(stateBrightness);
+  }
+
+  resumeStateChanges();
 }
