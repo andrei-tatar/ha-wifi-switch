@@ -1,18 +1,13 @@
 #include "web.h"
-#include "util.h"
-#include <ArduinoJson.h>
 
 using namespace std;
 using namespace std::placeholders;
 
 void NO_OP_REQ(AsyncWebServerRequest *req) {}
 
-Web::Web(Preferences &preferences, Dimmer &dimmer, Io &io)
-    : _server(80), _preferences(preferences), _dimmer(dimmer), _io(io) {}
+Web::Web() : _server(80) {}
 
 void Web::begin(String type) {
-  _type = type;
-
   _server.on("/api/status", HTTP_GET, bind(&Web::getStatus, this, _1));
   _server.on("/api/config", HTTP_GET, bind(&Web::getConfig, this, _1));
   _server.on("/api/config", HTTP_POST, NO_OP_REQ, NULL,
@@ -29,19 +24,9 @@ void Web::getStatus(AsyncWebServerRequest *req) {
   DynamicJsonDocument json(2048);
   json["freeHeap"] = ESP.getFreeHeap();
   json["uptimeSeconds"] = millis() / 1000;
-  json["type"] = _type;
 
-  if (_type == "dimmer") {
-    auto dimmer = json.createNestedObject("dimmer");
-    dimmer["on"] = _dimmer.isOn();
-    dimmer["brightness"] = _dimmer.getBrightness();
-  }
-
-  auto touch = json.createNestedArray("touch");
-  for (uint8_t i = 0; i < IO_CNT; i++) {
-    auto parent = touch.createNestedObject();
-    parent["value"] = _io.touch[i].getValue();
-    parent["threshold"] = _io.touch[i].getThreshold();
+  if (_appendStatus) {
+    _appendStatus(json);
   }
 
   String response;
@@ -50,10 +35,12 @@ void Web::getStatus(AsyncWebServerRequest *req) {
 }
 
 void Web::getConfig(AsyncWebServerRequest *req) {
-  auto config = _preferences.isKey(CONFIG_KEY)
-                    ? _preferences.getString(CONFIG_KEY)
-                    : "{}";
-  req->send(200, "application/json", config);
+  if (_readConfig) {
+    auto config = _readConfig();
+    req->send(200, "application/json", config);
+  } else {
+    req->send(500, "text/html", "NO GET HANDLER");
+  }
 }
 
 void Web::updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
@@ -69,11 +56,27 @@ void Web::updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
     char *str = (char *)req->_tempObject;
     str[total] = 0;
 
-    _preferences.putString(CONFIG_KEY, str);
+    if (_setConfig) {
+      _setConfig(str);
+      req->send(204);
+    } else {
+      req->send(500, "text/html", "NO SET HANDLER");
+    }
     free(req->_tempObject);
-
-    req->send(204);
-
-    _reboot.once_ms(1500, []() { esp_restart(); });
   }
+}
+
+Web &Web::onReadConfig(ReadConfigHandler readConfig) {
+  _readConfig = readConfig;
+  return *this;
+}
+
+Web &Web::onSetConfig(SetConfigHandler setConfig) {
+  _setConfig = setConfig;
+  return *this;
+}
+
+Web &Web::onAppendStatus(AppendStatusHandler appendStatus) {
+  _appendStatus = appendStatus;
+  return *this;
 }

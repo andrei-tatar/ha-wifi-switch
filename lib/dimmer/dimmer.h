@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <Ticker.h>
 
-typedef void (*DimmerStateChangedHandler)(bool on, uint8_t brightness);
+typedef std::function<void(bool on, uint8_t brightness)> DimmerStateChangedHandler;
 
 class Dimmer {
   bool _initialized = false;

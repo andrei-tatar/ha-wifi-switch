@@ -1,20 +1,21 @@
 #ifndef _WEB_H_
 #define _WEB_H_
 
-#include "dimmer.h"
 #include "io.h"
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
-#include <Preferences.h>
-#include <Ticker.h>
+
+typedef std::function<String()> ReadConfigHandler;
+typedef std::function<void(String config)> SetConfigHandler;
+typedef std::function<void(JsonVariant doc)> AppendStatusHandler;
 
 class Web {
 private:
   AsyncWebServer _server;
-  Preferences &_preferences;
-  Dimmer &_dimmer;
-  Io &_io;
-  Ticker _reboot;
+  ReadConfigHandler _readConfig;
+  SetConfigHandler _setConfig;
+  AppendStatusHandler _appendStatus;
   String _type;
 
   void getConfig(AsyncWebServerRequest *req);
@@ -24,7 +25,11 @@ private:
   void handleNotFound(AsyncWebServerRequest *req);
 
 public:
-  Web(Preferences &preferences, Dimmer &dimmer, Io &io);
+  Web();
+
+  Web &onReadConfig(ReadConfigHandler readConfig);
+  Web &onSetConfig(SetConfigHandler setConfig);
+  Web &onAppendStatus(AppendStatusHandler appendStatus);
 
   void begin(String type);
 };

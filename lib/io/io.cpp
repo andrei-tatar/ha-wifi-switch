@@ -1,5 +1,7 @@
 #include "io.h"
 
+#define IO_DEBOUNCE MSEC(50)
+
 Io::Io() {
   for (uint8_t i = 0; i < IO_CNT; i++)
     _ledPins[i] = -1;
@@ -19,8 +21,9 @@ Io &Io::useLedPins(int8_t pin1, int8_t pin2, int8_t pin3) {
   return *this;
 }
 
-Io &Io::useRedLedPin(int8_t pin) {
+Io &Io::useRedLedPin(int8_t pin, bool invert) {
   _ledRed = pin;
+  _invertLedRed = invert;
   return *this;
 }
 
@@ -99,21 +102,24 @@ Io &Io::onTouchUp(TouchVoidHandler handler) {
   return *this;
 }
 
-Io &Io::setLedLevels(uint8_t blue, uint8_t touch, uint8_t red) {
-  _levelBlue = blue;
+Io &Io::setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
+                     uint8_t red) {
+  _levelBlue[0] = b1;
+  _levelBlue[1] = b2;
+  _levelBlue[2] = b3;
   _levelRed = red;
-  _levelBlueTouched = touch;
+  _levelBlueTouched = bTouch;
   updateLeds();
   return *this;
 }
 
 void Io::updateLeds() {
   if (_ledRed != -1) {
-    ledcWrite(IO_CNT, _levelRed);
+    ledcWrite(IO_CNT, _invertLedRed ? (255 - _levelRed) : _levelRed);
   }
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
-      ledcWrite(i, 255 - (_pressed == i ? _levelBlueTouched : _levelBlue));
+      ledcWrite(i, 255 - (_pressed == i ? _levelBlueTouched : _levelBlue[i]));
     }
   }
 }
