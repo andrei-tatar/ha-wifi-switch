@@ -29,7 +29,7 @@ void Touch::begin() {
     touch_pad_set_meas_time(0x1000, 0x1000);
 
     // Touch Sensor Timer initiated
-    touch_pad_filter_start(20);
+    touch_pad_filter_start(10);
   }
 
   touch_pad_config((touch_pad_t)_channel, SOC_TOUCH_PAD_THRESHOLD_MAX);

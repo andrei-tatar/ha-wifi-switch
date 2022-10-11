@@ -1,6 +1,6 @@
 #include "io.h"
 
-#define IO_DEBOUNCE MSEC(50)
+#define IO_DEBOUNCE MSEC(25)
 
 Io::Io() {
   for (uint8_t i = 0; i < IO_CNT; i++)
