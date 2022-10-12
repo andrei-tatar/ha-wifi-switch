@@ -14,10 +14,9 @@ class Io {
 private:
   int8_t _ledPins[IO_CNT];
   int8_t _ledRed;
-  bool _invertLedRed;
-  int8_t _lastPressed = -1, _pressed = -1;
-  uint32_t _lastChanged;
-  bool _updated = false;
+  bool _invertLedRed, _stableUpdated;
+  int8_t _pressed = -1, _stablePressed = -1, _debounce;
+  uint32_t _lastSentEvent, _lastStableChange;
   Ticker _ticker;
   static void handle(Io *instance);
   uint8_t _levelBlue[IO_CNT], _levelBlueTouched, _levelRed;

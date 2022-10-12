@@ -1,6 +1,6 @@
 #include "io.h"
 
-#define IO_DEBOUNCE MSEC(25)
+#define IO_PRESS_REPEAT MSEC(25)
 
 Io::Io() {
   for (uint8_t i = 0; i < IO_CNT; i++)
@@ -58,38 +58,45 @@ void Io::handle(Io *instance) {
     }
   }
 
-  if (pressed != io._lastPressed) {
-    io._lastPressed = pressed;
-    io._lastChanged = now;
-    io._updated = false;
-  } else if (now - io._lastChanged > IO_DEBOUNCE) {
-    if (!io._updated) {
-      if (pressed != io._pressed && io._pressed != -1) {
+  if (pressed != io._stablePressed) {
+    if (io._stablePressed == -1 || pressed == -1) {
+      io._debounce = MSEC(50);
+    } else {
+      io._debounce = MSEC(100);
+    }
+
+    io._stablePressed = pressed;
+    io._lastStableChange = now;
+    io._stableUpdated = false;
+  }
+
+  if (!io._stableUpdated && now - io._lastStableChange >= io._debounce) {
+    io._stableUpdated = true;
+
+    if (io._stablePressed != io._pressed) {
+      if (io._pressed != -1) {
         if (io._touchUp) {
           io._touchUp();
         }
       }
 
-      io._pressed = pressed;
-      io._updated = true;
-      io._lastChanged = now;
-
-      if (io._pressed == -1) {
-        if (io._touchUp) {
-          io._touchUp();
-        }
-      } else {
-        if (io._touchDown) {
-          io._touchDown(pressed);
-        }
-      }
-
+      io._pressed = io._stablePressed;
       io.updateLeds();
-    } else if (io._pressed != -1) {
-      io._lastChanged = now;
-      if (io._touchPress) {
-        io._touchPress(io._pressed);
+
+      if (io._pressed != -1) {
+        if (io._touchDown) {
+          io._touchDown(io._pressed);
+        }
       }
+
+      io._lastSentEvent = now;
+    }
+  }
+
+  if (io._pressed != -1 && now - io._lastSentEvent >= IO_PRESS_REPEAT) {
+    io._lastSentEvent = now;
+    if (io._touchPress) {
+      io._touchPress(io._pressed);
     }
   }
 }
