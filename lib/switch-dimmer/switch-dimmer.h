@@ -10,6 +10,7 @@ class SwitchDimmer : public SwitchBase {
   Dimmer _dimmer;
   Io &_io;
   bool _wasOff;
+  bool _suspendedWhileTouchDown;
   uint8_t _onBlueLevel, _onBlueTouchLevel, _onRedLevel, _offBlueLevel,
       _offBlueTouchLevel, _offRedLevel;
 
@@ -18,7 +19,6 @@ class SwitchDimmer : public SwitchBase {
 public:
   SwitchDimmer(Io &io);
   bool configure(const JsonVariantConst config);
-  void appendStatus(JsonVariant doc) const;
   void appendState(JsonVariant doc) const;
   void updateState(JsonVariantConst state) override;
 };

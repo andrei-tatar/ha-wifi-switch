@@ -14,7 +14,10 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
       _wasOff = !_dimmer.isOn();
       if (!key || _wasOff) {
         _dimmer.toggle();
+        _suspendedWhileTouchDown = false;
       } else {
+        suspendStateChanges();
+        _suspendedWhileTouchDown = true;
         _dimmer.changeBrightness(key == 1 ? 1 : -1);
       }
     });
@@ -23,6 +26,11 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
         return;
       }
       _dimmer.changeBrightness(key == 1 ? 1 : -1);
+    });
+    _io.onTouchUp([this] {
+      if (_suspendedWhileTouchDown) {
+        resumeStateChanges();
+      }
     });
 
     _dimmer.onStateChanged([this](bool on, uint8_t brightness) {
@@ -64,14 +72,6 @@ void SwitchDimmer::updateLevels() {
   } else {
     _io.setLedLevels(_offBlueLevel, _offBlueLevel, _offBlueLevel,
                      _offBlueTouchLevel, _offRedLevel);
-  }
-}
-
-void SwitchDimmer::appendStatus(JsonVariant doc) const {
-  if (_dimmer.isInitialized()) {
-    JsonVariant state =
-        doc.createNestedObject("dimmer").createNestedObject("state");
-    appendState(state);
   }
 }
 

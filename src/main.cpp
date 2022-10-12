@@ -1,4 +1,5 @@
 #include "io.h"
+#include "switch-blinds.h"
 #include "switch-common.h"
 #include "switch-dimmer.h"
 #include "switch-onoff.h"
@@ -14,11 +15,12 @@ Io io;
 SwitchCommon switchCommon(io);
 SwitchDimmer switchDimmer(io);
 SwitchOnOff switchOnOff(io);
+SwitchBlinds switchBlinds(io);
 
 Preferences preferences;
 Ticker reboot;
 Web web;
-String type = "undefined";
+String type;
 
 void applyConfiguration(bool init) {
   DynamicJsonDocument config(2048);
@@ -28,11 +30,13 @@ void applyConfiguration(bool init) {
 
   auto needsReboot = switchCommon.configure(config);
 
-  String configType = config["type"];
+  String configType = config["type"] | "undefined";
   if (configType == "dimmer") {
     needsReboot |= switchDimmer.configure(config.getMember("dimmer"));
   } else if (configType == "switch") {
     needsReboot |= switchOnOff.configure(config.getMember("switch"));
+  } else if (configType == "blinds") {
+    needsReboot |= switchOnOff.configure(config.getMember("blinds"));
   }
 
   type = configType;
@@ -51,19 +55,25 @@ void setup() {
   web.onAppendStatus([](JsonVariant doc) {
     doc["type"] = type;
     switchCommon.appendStatus(doc);
-    switchDimmer.appendStatus(doc);
-    switchOnOff.appendStatus(doc);
+
+    auto state = doc.createNestedObject("state");
+    switchDimmer.appendState(state);
+    switchOnOff.appendState(state);
+    switchBlinds.appendState(state);
   });
-  switchCommon.onGetState([](JsonVariant doc) {
-    switchDimmer.appendState(doc);
-    switchOnOff.appendState(doc);
+  switchCommon.onGetState([](JsonVariant state) {
+    switchDimmer.appendState(state);
+    switchOnOff.appendState(state);
+    switchBlinds.appendState(state);
   });
   auto publishState = std::bind(&SwitchCommon::publishState, switchCommon);
   switchDimmer.onStateChanged(publishState);
   switchOnOff.onStateChanged(publishState);
+  switchBlinds.onStateChanged(publishState);
   switchCommon.onStateChanged([](JsonVariantConst state) {
     switchDimmer.updateState(state);
     switchOnOff.updateState(state);
+    switchBlinds.updateState(state);
   });
   web.onReadConfig([] {
     return preferences.isKey(CONFIG_KEY) ? preferences.getString(CONFIG_KEY)

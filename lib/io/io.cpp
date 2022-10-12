@@ -64,9 +64,16 @@ void Io::handle(Io *instance) {
     io._updated = false;
   } else if (now - io._lastChanged > IO_DEBOUNCE) {
     if (!io._updated) {
+      if (pressed != io._pressed && io._pressed != -1) {
+        if (io._touchUp) {
+          io._touchUp();
+        }
+      }
+
       io._pressed = pressed;
       io._updated = true;
       io._lastChanged = now;
+
       if (io._pressed == -1) {
         if (io._touchUp) {
           io._touchUp();

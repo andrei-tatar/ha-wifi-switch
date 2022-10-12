@@ -18,7 +18,6 @@ class SwitchOnOff : public SwitchBase {
 public:
   SwitchOnOff(Io &io);
   bool configure(const JsonVariantConst config);
-  void appendStatus(JsonVariant doc) const;
   void appendState(JsonVariant doc) const;
   void updateState(JsonVariantConst state) override;
 };

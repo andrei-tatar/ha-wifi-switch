@@ -44,13 +44,6 @@ void SwitchOnOff::updateLevels() {
                                                        : _offRedLevel);
 }
 
-void SwitchOnOff::appendStatus(JsonVariant doc) const {
-  if (_initialized) {
-    auto state = doc.createNestedObject("switch").createNestedObject("state");
-    appendState(state);
-  }
-}
-
 void SwitchOnOff::appendState(JsonVariant doc) const {
   if (_initialized) {
     auto state = doc.createNestedArray("on");
