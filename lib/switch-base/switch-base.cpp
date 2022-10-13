@@ -6,14 +6,13 @@ void SwitchBase::raiseStateChanged() {
     if (_suspendStateChanges) {
       _pendingChanges = true;
     } else {
+      _pendingChanges = false;
 
       auto now = millis();
       if (now - _lastSend > MSEC(500)) {
         _lastSend = now;
         _handler();
-        _pendingChanges = false;
       } else {
-        _pendingChanges = true;
         _throttle.once_ms<SwitchBase *>(
             500, [](SwitchBase *arg) { arg->raiseStateChanged(); }, this);
       }

@@ -44,6 +44,8 @@ void Io::begin() {
     touch[i].begin();
 
   _ticker.attach_ms(5, Io::handle, this);
+
+  updateLeds();
 }
 
 void Io::handle(Io *instance) {

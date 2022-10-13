@@ -36,7 +36,7 @@ void applyConfiguration(bool init) {
   } else if (configType == "switch") {
     needsReboot |= switchOnOff.configure(config.getMember("switch"));
   } else if (configType == "blinds") {
-    needsReboot |= switchOnOff.configure(config.getMember("blinds"));
+    needsReboot |= switchBlinds.configure(config.getMember("blinds"));
   }
 
   type = configType;
