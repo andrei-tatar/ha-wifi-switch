@@ -84,9 +84,11 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
           publishState();
         });
 
-    reconnectMqtt.attach_ms(2000, [] {
+    reconnectMqtt.attach_ms(10000, [] {
       if (WiFi.isConnected()) {
         mqtt.connect();
+      } else {
+        WiFi.begin();
       }
     });
   }
