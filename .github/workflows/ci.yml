@@ -2,7 +2,7 @@ name: Firmware pull request validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   build:
