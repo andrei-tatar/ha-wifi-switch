@@ -3,6 +3,14 @@
 using namespace std;
 using namespace std::placeholders;
 
+#ifndef BUILD_VERSION
+#define BUILD_VERSION "0.0.1"
+#endif
+
+#define STRINGIZER(arg) #arg
+#define STR_VALUE(arg) STRINGIZER(#arg)
+#define VERSION STR_VALUE(BUILD_VERSION)
+
 void NO_OP_REQ(AsyncWebServerRequest *req) {}
 
 Web::Web() : _server(80) {}
@@ -24,6 +32,7 @@ void Web::getStatus(AsyncWebServerRequest *req) {
   DynamicJsonDocument json(2048);
   json["freeHeap"] = ESP.getFreeHeap();
   json["uptimeSeconds"] = millis() / 1000;
+  json["version"] = VERSION;
 
   if (_appendStatus) {
     _appendStatus(json);
