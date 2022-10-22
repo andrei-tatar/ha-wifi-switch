@@ -58,13 +58,13 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
 
     _stateTopic = host + "/state";
     _stateSetTopic = _stateTopic + "/set";
-    String logTopic = host + "/log";
+
     mqtt.setServer(_mdnsHost.c_str(), _mdnsPort)
         .setCredentials(_mdnsUser.c_str(), _mdnsPassword.c_str())
         .setWill(_stateTopic.c_str(), 1, true, lastWillMessage.c_str())
-        .onMessage([this, logTopic](char *topic, const char *payload,
-                                    AsyncMqttClientMessageProperties properties,
-                                    size_t len, size_t index, size_t total) {
+        .onMessage([this](char *topic, const char *payload,
+                          AsyncMqttClientMessageProperties properties,
+                          size_t len, size_t index, size_t total) {
           if (len != total) {
             return;
           }
@@ -73,15 +73,13 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) == 0) {
               _stateChanged(stateUpdate);
-            } else {
-              mqtt.publish(logTopic.c_str(), 1, false,
-                           "Error during deserialization");
             }
           }
         })
-        .onConnect([this](bool sessionPresent) {
+        .onConnect([this, host](bool sessionPresent) {
           mqtt.subscribe(_stateSetTopic.c_str(), 1);
           publishState();
+          publishVersion(host + "/version");
         });
 
     reconnectMqtt.attach_ms(10000, [] {
@@ -94,6 +92,10 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
   }
 
   return false;
+}
+
+void SwitchCommon::publishVersion(String topic) {
+  mqtt.publish(topic.c_str(), 1, true, BUILD_VERSION);
 }
 
 void SwitchCommon::publishState() {

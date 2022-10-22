@@ -21,6 +21,7 @@ class SwitchCommon {
 
   bool configureIo(const JsonVariantConst config);
   bool configureMqtt(const JsonVariantConst config, String host);
+  void publishVersion(String topic);
 
 public:
   SwitchCommon(Io &io);
