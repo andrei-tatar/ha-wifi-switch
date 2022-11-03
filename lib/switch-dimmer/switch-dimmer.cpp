@@ -39,10 +39,11 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
     });
   }
 
-  if (config.containsKey("curve")) {
+  auto curveConfig = config["curve"].as<JsonArrayConst>();
+  if (curveConfig.size() == 100) {
     uint16_t curve[100];
     for (uint8_t i = 0; i < 100; i++) {
-      curve[i] = config["curve"].getElement(i);
+      curve[i] = curveConfig[i];
     }
     _dimmer.setBrightnessCurve(curve);
   }

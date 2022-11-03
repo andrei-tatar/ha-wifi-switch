@@ -99,7 +99,7 @@ void SwitchCommon::publishVersion(String topic) {
 }
 
 void SwitchCommon::publishState() {
-  DynamicJsonDocument stateJson(2000);
+  DynamicJsonDocument stateJson(500);
 
   if (_getState) {
     _getState(stateJson);

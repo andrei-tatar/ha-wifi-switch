@@ -1,3 +1,4 @@
+#include "configuration.h"
 #include "io.h"
 #include "switch-blinds.h"
 #include "switch-common.h"
@@ -9,7 +10,6 @@
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <AsyncJson.h>
-#include <Preferences.h>
 
 Io io;
 SwitchCommon switchCommon(io);
@@ -17,17 +17,14 @@ SwitchDimmer switchDimmer(io);
 SwitchOnOff switchOnOff(io);
 SwitchBlinds switchBlinds(io);
 
-Preferences preferences;
 Ticker reboot;
 Web web;
 String type;
+Configuration configuration;
 
 void applyConfiguration(bool init) {
-  DynamicJsonDocument config(2048);
-  if (preferences.isKey(CONFIG_KEY)) {
-    deserializeJson(config, preferences.getString(CONFIG_KEY));
-  }
-
+  DynamicJsonDocument config(5000);
+  configuration.read(config);
   auto needsReboot = switchCommon.configure(config);
 
   String configType = config["type"] | "undefined";
@@ -47,7 +44,8 @@ void applyConfiguration(bool init) {
 }
 
 void setup() {
-  preferences.begin("ha-switch");
+  configuration.begin();
+
   WiFi.mode(WIFI_STA);
   WiFi.begin();
 
@@ -75,12 +73,9 @@ void setup() {
     switchOnOff.updateState(state);
     switchBlinds.updateState(state);
   });
-  web.onReadConfig([] {
-    return preferences.isKey(CONFIG_KEY) ? preferences.getString(CONFIG_KEY)
-                                         : "{}";
-  });
+  web.onReadConfig([] { return configuration.readRaw(); });
   web.onSetConfig([](String config) {
-    preferences.putString(CONFIG_KEY, config);
+    configuration.update(config);
     applyConfiguration(false);
   });
   web.begin(type);
