@@ -7,29 +7,61 @@
 
 enum Labels {
   Label_Start = 1,
-  Label_ReadZeroPinAndWaitForHigh,
-  Label_ReadZeroPinAndWaitForLow,
+  Label_ReadZeroPinAndWaitHigh,
+  Label_ReadZeroPinAndWaitLow,
+  Label_SkipDelays,
   Label_LoadDelay,
-  Label_Delay_10k,
-  Label_Delay_1k,
-  Label_Delay_100,
-  Label_Delay_10,
-  Label_Delay_Over,
-  Label_PulseTriac,
-  Label_PulseTriacLonger,
 };
 
-enum Registers { Reg_PulseDelay = R1, Reg_DelayMemoryLocation = R2 };
+enum Registers {
+  Reg_PulseDelay = R1,
+  Reg_DelayMemoryLocation = R2,
+  Reg_Temp = R3
+};
 
 enum Memory {
   Mem_Delay = 0,
   Mem_Program,
 };
 
-#define TICKS 58600 // number of delay ticks per 10msec
+#define TRIAC_OFF I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0)
+#define TRIAC_ON I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1)
+#define LOAD_DELAY I_MOVR(R0, Reg_PulseDelay)
+#define LOAD_DELAY_C                                                           \
+  LOAD_DELAY, I_MOVI(Reg_Temp, TICKS - TICKS_BEFORE_OFF),                      \
+      I_SUBR(R0, Reg_Temp, R0)
+
+#define TICKS 59247 // number of delay ticks per 10msec
+#define TICKS_BEFORE_OFF (TICKS / 20) //.5 msec
 #define OFF_TICKS 0xFFFF
-#define TRIAC_PULSE_LENGTH 1000 // ~ 116 uS
-#define TRIAC_LONG_PULSE_LENGTH (TICKS / 4)
+
+#define Delay10k 0
+#define Delay1k 1
+#define Delay100 2
+#define Delay10 3
+#define DelayOver 4
+#define I(index, l) (index * 10 + l)
+
+#define WAIT(index)                                                            \
+  M_LABEL(I(index, Delay10k)), M_BL(I(index, Delay1k), 10000), I_DELAY(15000), \
+      I_SUBI(R0, R0, 10000), M_BX(I(index, Delay10k)),                         \
+      M_LABEL(I(index, Delay1k)), M_BL(I(index, Delay100), 1000),              \
+      I_DELAY(1500), I_SUBI(R0, R0, 1000), M_BX(I(index, Delay1k)),            \
+      M_LABEL(I(index, Delay100)), M_BL(I(index, Delay10), 100), I_DELAY(150), \
+      I_SUBI(R0, R0, 100), M_BX(I(index, Delay100)),                           \
+      M_LABEL(I(index, Delay10)), M_BL(I(index, DelayOver), 10), I_DELAY(10),  \
+      I_SUBI(R0, R0, 10), M_BX(I(index, Delay10)),                             \
+      M_LABEL(I(index, DelayOver))
+
+#define WAIT_FOR_HIGH                                                          \
+  M_LABEL(Label_ReadZeroPinAndWaitHigh),                                       \
+      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),                             \
+      M_BL(Label_ReadZeroPinAndWaitHigh, 1)
+
+#define WAIT_FOR_LOW                                                           \
+  M_LABEL(Label_ReadZeroPinAndWaitLow),                                        \
+      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),                             \
+      M_BGE(Label_ReadZeroPinAndWaitLow, 1)
 
 Dimmer::Dimmer()
     : _pinZero(-1), _pinTriac(-1), _brightness(100), _currentBrightness(0),
@@ -77,78 +109,37 @@ void Dimmer::begin() {
   _ticker.attach_ms(25, Dimmer::handle, this);
 
   const ulp_insn_t program[] = {
-      I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
+      TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
 
       M_LABEL(Label_Start),
 
-      // wait for 1
-      M_LABEL(Label_ReadZeroPinAndWaitForHigh),
-      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),
-      M_BL(Label_ReadZeroPinAndWaitForHigh, 1),
+      WAIT_FOR_HIGH,                      // wait zero cross to become 1
+      LOAD_DELAY,                         // load delay into R0
+      M_BGE(Label_SkipDelays, OFF_TICKS), // skip pulsing if off
 
-      // load delay in R0
-      I_MOVR(R0, Reg_PulseDelay),
+      WAIT(1),      // wait
+      TRIAC_ON,     // triac on
+      LOAD_DELAY_C, // load (10msec-delay) into R0
+      WAIT(2),      // wait
+      TRIAC_OFF,    // triac off
 
-      // skip pulsing the triac if OFF
-      M_BGE(Label_LoadDelay, OFF_TICKS),
+      I_DELAY(TICKS_BEFORE_OFF), // wait until next half period
 
-      // wait for the specified delay
-      M_LABEL(Label_Delay_10k), M_BL(Label_Delay_1k, 10000), I_DELAY(15000),
-      I_SUBI(R0, R0, 10000), M_BX(Label_Delay_10k),
+      LOAD_DELAY,   // load delay into R0
+      WAIT(3),      // wait
+      TRIAC_ON,     // triac on
+      LOAD_DELAY_C, // load (10msec-delay) into R0
+      WAIT(4),      // wait
+      TRIAC_OFF,    // triac off
 
-      M_LABEL(Label_Delay_1k), M_BL(Label_Delay_100, 1000), I_DELAY(1500),
-      I_SUBI(R0, R0, 1000), M_BX(Label_Delay_1k),
+      M_BX(Label_LoadDelay),
 
-      M_LABEL(Label_Delay_100), M_BL(Label_Delay_10, 100), I_DELAY(150),
-      I_SUBI(R0, R0, 100), M_BX(Label_Delay_100),
-
-      M_LABEL(Label_Delay_10), M_BL(Label_Delay_Over, 10), I_DELAY(10),
-      I_SUBI(R0, R0, 10), M_BX(Label_Delay_10),
-
-      M_LABEL(Label_Delay_Over),
-
-      // load delay again
-      I_MOVR(R0, Reg_PulseDelay),
-      M_BL(Label_PulseTriacLonger, TRIAC_LONG_PULSE_LENGTH),
-
-      // pulse the TRIAC
-      M_LABEL(Label_PulseTriac),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1),
-      I_DELAY(TRIAC_PULSE_LENGTH),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0),
-
-      // delay so next pulse is in 10msec
-      I_DELAY(65535), I_DELAY(20451),
-
-      // pulse the TRIAC again
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1),
-      I_DELAY(TRIAC_PULSE_LENGTH),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0), M_BX(Label_LoadDelay),
-
-      // pulse the TRIAC with longer hold time
-      M_LABEL(Label_PulseTriacLonger),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1),
-      I_DELAY(TRIAC_LONG_PULSE_LENGTH),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0),
-
-      // delay so next pulse is in 10msec
-      I_DELAY(65535 - TRIAC_LONG_PULSE_LENGTH + TRIAC_PULSE_LENGTH),
-      I_DELAY(20451),
-
-      // pulse the TRIAC again with longer hold time
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1),
-      I_DELAY(TRIAC_LONG_PULSE_LENGTH),
-      I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0),
-
-      M_LABEL(Label_LoadDelay),
+      M_LABEL(Label_SkipDelays),
+      WAIT_FOR_LOW, // wait for 0 (when dimmer is off)
 
       // load the delay time from memory
+      M_LABEL(Label_LoadDelay),
       I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
-
-      // wait for 0
-      M_LABEL(Label_ReadZeroPinAndWaitForLow),
-      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),
-      M_BGE(Label_ReadZeroPinAndWaitForLow, 1),
 
       // start over again
       M_BX(Label_Start),
