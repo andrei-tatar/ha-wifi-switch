@@ -79,13 +79,14 @@ Dimmer::Dimmer()
                          277,  240,  207,  179,  155,  135,  120,  109,  102,
                          100} {}
 
-Dimmer &Dimmer::usePins(int8_t pinZero, int8_t pinTriac) {
+bool Dimmer::usePins(int8_t pinZero, int8_t pinTriac) {
+  bool pinsChanged = _pinZero != pinZero || _pinTriac != pinTriac;
   if (rtc_gpio_is_valid_gpio((gpio_num_t)pinZero) &&
       rtc_gpio_is_valid_gpio((gpio_num_t)pinTriac)) {
     _pinZero = pinZero;
     _pinTriac = pinTriac;
   }
-  return *this;
+  return pinsChanged;
 }
 
 void Dimmer::begin() {
@@ -151,8 +152,6 @@ void Dimmer::begin() {
   size_t size = sizeof(program) / sizeof(ulp_insn_t);
   ulp_process_macros_and_load(load_addr, program, &size);
   ulp_run(load_addr);
-
-  _initialized = true;
 }
 
 void Dimmer::handle(Dimmer *instance) {
@@ -229,5 +228,3 @@ void Dimmer::raiseStateChanged() {
     _handler(_on, _brightness);
   }
 }
-
-bool Dimmer::isInitialized() const { return _initialized; }

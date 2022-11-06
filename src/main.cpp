@@ -23,24 +23,25 @@ String type;
 Configuration configuration;
 
 void applyConfiguration(bool init) {
-  DynamicJsonDocument config(5000);
-  configuration.read(config);
-  auto needsReboot = switchCommon.configure(config);
-
-  String configType = config["type"] | "undefined";
+  auto config = configuration.read();
+  auto needsReboot = switchCommon.configure(*config);
+  String configType = (*config)["type"] | "undefined";
   if (configType == "dimmer") {
-    needsReboot |= switchDimmer.configure(config.getMember("dimmer"));
+    needsReboot |= switchDimmer.configure(config->getMember("dimmer"));
   } else if (configType == "switch") {
-    needsReboot |= switchOnOff.configure(config.getMember("switch"));
+    needsReboot |= switchOnOff.configure(config->getMember("switch"));
   } else if (configType == "blinds") {
-    needsReboot |= switchBlinds.configure(config.getMember("blinds"));
+    needsReboot |= switchBlinds.configure(config->getMember("blinds"));
   }
 
+  needsReboot |= type != configType;
   type = configType;
 
-  if (!init /*&& needsReboot*/) {
+  if (!init && needsReboot) {
     reboot.once_ms(1500, []() { esp_restart(); });
   }
+
+  delete config;
 }
 
 void setup() {
@@ -73,7 +74,7 @@ void setup() {
     switchOnOff.updateState(state);
     switchBlinds.updateState(state);
   });
-  web.onReadConfig([] { return configuration.readRaw(); });
+  web.onReadConfig([] { return configuration.read(); });
   web.onSetConfig([](String config) {
     configuration.update(config);
     applyConfiguration(false);

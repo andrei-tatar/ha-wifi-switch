@@ -10,6 +10,7 @@ class SwitchDimmer : public SwitchBase {
   Dimmer _dimmer;
   Io &_io;
   bool _wasOff;
+  bool _initialized = false;
   bool _suspendedWhileTouchDown;
   uint8_t _onBlueLevel, _onBlueTouchLevel, _onRedLevel, _offBlueLevel,
       _offBlueTouchLevel, _offRedLevel;

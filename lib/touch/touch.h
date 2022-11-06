@@ -14,7 +14,7 @@ private:
   void restartCalibration();
 
 public:
-  void usePin(int8_t pin);
+  bool usePin(int8_t pin);
 
   touch_value_t getThreshold() const;
   touch_value_t getValue() const;

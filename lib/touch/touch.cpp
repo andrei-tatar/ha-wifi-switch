@@ -7,12 +7,15 @@
 #define CALIBRATION_SAMPLES 50
 #define MAX_MARGIN_SUCCESS_CALIBRATION 10
 
-void Touch::usePin(int8_t pin) {
+bool Touch::usePin(int8_t pin) {
+  bool pinChanged = _gpio != pin;
   _gpio = pin;
-  _channel = digitalPinToTouchChannel(_gpio);
+  return pinChanged;
 }
 
 void Touch::begin() {
+  _channel = digitalPinToTouchChannel(_gpio);
+
   if (_channel == -1) {
     return;
   }

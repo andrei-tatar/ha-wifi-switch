@@ -7,27 +7,30 @@ Io::Io() {
     _ledPins[i] = -1;
 }
 
-Io &Io::useTouchPins(int8_t pin1, int8_t pin2, int8_t pin3) {
-  touch[0].usePin(pin1);
-  touch[1].usePin(pin2);
-  touch[2].usePin(pin3);
-  return *this;
-}
+bool Io::usePins(int8_t touch1, int8_t touch2, int8_t touch3, int8_t led1,
+                 int8_t led2, int8_t led3, int8_t redLed, bool invertRedLed) {
+  bool pinsChanged = false;
+  pinsChanged |= touch[0].usePin(touch1);
+  pinsChanged |= touch[1].usePin(touch2);
+  pinsChanged |= touch[2].usePin(touch3);
 
-Io &Io::useLedPins(int8_t pin1, int8_t pin2, int8_t pin3) {
-  _ledPins[0] = pin1;
-  _ledPins[1] = pin2;
-  _ledPins[2] = pin3;
-  return *this;
-}
+  pinsChanged |= _ledPins[0] != led1 || _ledPins[1] != led2 ||
+                 _ledPins[2] != led3 || _ledRed != redLed;
 
-Io &Io::useRedLedPin(int8_t pin, bool invert) {
-  _ledRed = pin;
-  _invertLedRed = invert;
-  return *this;
+  _ledPins[0] = led1;
+  _ledPins[1] = led2;
+  _ledPins[2] = led3;
+  _ledRed = redLed;
+  _invertLedRed = invertRedLed;
+
+  return pinsChanged;
 }
 
 void Io::begin() {
+  if (_initialized) {
+    return;
+  }
+
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
       ledcSetup(i, 5000, 8);
@@ -46,6 +49,7 @@ void Io::begin() {
   _ticker.attach_ms(5, Io::handle, this);
 
   updateLeds();
+  _initialized = true;
 }
 
 void Io::handle(Io *instance) {

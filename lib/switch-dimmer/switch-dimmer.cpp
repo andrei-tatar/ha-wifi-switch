@@ -3,11 +3,11 @@
 SwitchDimmer::SwitchDimmer(Io &io) : _io(io) {}
 
 bool SwitchDimmer::configure(const JsonVariantConst config) {
-  if (!_dimmer.isInitialized()) {
-    int8_t zero = config["pins"]["zero"] | -1;
-    int8_t triac = config["pins"]["triac"] | -1;
+  int8_t zero = config["pins"]["zero"] | -1;
+  int8_t triac = config["pins"]["triac"] | -1;
 
-    _dimmer.usePins(zero, triac);
+  bool needsReboot = _dimmer.usePins(zero, triac);
+  if (!_initialized) {
     _dimmer.begin();
 
     _io.onTouchDown([this](int8_t key) {
@@ -63,7 +63,8 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
   _offRedLevel = offLevels["red"] | 20;
   updateLevels();
 
-  return false;
+  _initialized = true;
+  return needsReboot;
 }
 
 void SwitchDimmer::updateLevels() {
@@ -77,14 +78,14 @@ void SwitchDimmer::updateLevels() {
 }
 
 void SwitchDimmer::appendState(JsonVariant doc) const {
-  if (_dimmer.isInitialized()) {
+  if (_initialized) {
     doc["on"] = _dimmer.isOn();
     doc["brightness"] = _dimmer.getBrightness();
   }
 }
 
 void SwitchDimmer::updateState(JsonVariantConst state) {
-  if (!_dimmer.isInitialized()) {
+  if (!_initialized) {
     return;
   }
 

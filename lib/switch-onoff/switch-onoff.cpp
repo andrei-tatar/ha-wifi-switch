@@ -3,13 +3,29 @@
 SwitchOnOff::SwitchOnOff(Io &io) : _io(io), _pins{-1, -1, -1} {}
 
 bool SwitchOnOff::configure(const JsonVariantConst config) {
+  bool needsReboot = false;
+
+  for (uint8_t i = 0; i < IO_CNT; i++) {
+    int8_t newPin = config["pins"].getElement(i) | -1;
+    needsReboot |= _pins[i] != newPin;
+    _pins[i] = newPin;
+  }
+
   if (!_initialized) {
     for (uint8_t i = 0; i < IO_CNT; i++) {
-      _pins[i] = config["pins"].getElement(i) | -1;
       if (_pins[i] != -1) {
         pinMode(_pins[i], OUTPUT);
       }
     }
+
+    _io.onTouchDown([this](int8_t key) {
+      _state[key] = !_state[key];
+      if (_pins[key] != -1) {
+        digitalWrite(_pins[key], _state[key] ? HIGH : LOW);
+      }
+      updateLevels();
+      raiseStateChanged();
+    });
   }
 
   auto onLevels = config["levels"]["on"];
@@ -19,21 +35,10 @@ bool SwitchOnOff::configure(const JsonVariantConst config) {
   _onRedLevel = onLevels["red"] | 0;
   _offBlueLevel = offLevels["blue"] | 0;
   _offRedLevel = offLevels["red"] | 20;
-
   updateLevels();
 
-  _io.onTouchDown([this](int8_t key) {
-    _state[key] = !_state[key];
-    if (_pins[key] != -1) {
-      digitalWrite(_pins[key], _state[key] ? HIGH : LOW);
-    }
-    updateLevels();
-    raiseStateChanged();
-  });
-
   _initialized = true;
-
-  return false;
+  return needsReboot;
 }
 
 void SwitchOnOff::updateLevels() {

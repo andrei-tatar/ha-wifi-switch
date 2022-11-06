@@ -6,9 +6,15 @@
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
 
 bool SwitchBlinds::configure(const JsonVariantConst config) {
+  bool needsReboot = false;
+
+  int8_t pinOpen = config["pins"]["open"] | -1;
+  int8_t pinClose = config["pins"]["close"] | -1;
+  needsReboot = _pinOpen != pinOpen || _pinClose != pinClose;
+
   if (!_initialized) {
-    _pinOpen = config["pins"]["open"] | -1;
-    _pinClose = config["pins"]["close"] | -1;
+    _pinOpen = pinOpen;
+    _pinClose = pinClose;
 
     if (_pinOpen != -1) {
       pinMode(_pinOpen, OUTPUT);
@@ -43,7 +49,7 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
 
   _maxPosition = config["travel"] | SECS(40);
 
-  return false;
+  return needsReboot;
 }
 
 void SwitchBlinds::changeMotor(MotorState newState) {

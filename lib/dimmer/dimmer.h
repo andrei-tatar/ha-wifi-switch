@@ -7,7 +7,6 @@
 typedef std::function<void(bool on, uint8_t brightness)> DimmerStateChangedHandler;
 
 class Dimmer {
-  bool _initialized = false;
   int8_t _pinZero = -1, _pinTriac = -1;
   uint8_t _brightness = 100;
   uint8_t _currentBrightness = 0;
@@ -23,12 +22,11 @@ class Dimmer {
 
 public:
   Dimmer();
-  Dimmer &usePins(int8_t pinZero, int8_t pinTriac);
+  bool usePins(int8_t pinZero, int8_t pinTriac);
   void begin();
 
   uint8_t getBrightness() const;
   bool isOn() const;
-  bool isInitialized() const;
 
   void toggle();
   void changeBrightness(int8_t delta);

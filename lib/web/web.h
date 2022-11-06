@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 
-typedef std::function<String()> ReadConfigHandler;
+typedef std::function<DynamicJsonDocument *()> ReadConfigHandler;
 typedef std::function<void(String config)> SetConfigHandler;
 typedef std::function<void(JsonVariant doc)> AppendStatusHandler;
 

@@ -36,15 +36,14 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
 
   bool invertRedLed = config["pins"]["redLedInvert"] | false;
 
-  _io.useTouchPins(touch1, touch2, touch3)
-      .useLedPins(led1, led2, led3)
-      .useRedLedPin(ledRed, invertRedLed)
-      .begin();
+  bool pinsChanged = _io.usePins(touch1, touch2, touch3, led1, led2, led3,
+                                 ledRed, invertRedLed);
+  _io.begin();
 
-  return false;
+  return pinsChanged;
 }
 
-bool SwitchCommon::configureMqtt(const JsonVariantConst config,
+void SwitchCommon::configureMqtt(const JsonVariantConst config,
                                  const String host) {
   auto mdnsConfig = config["mqtt"];
 
@@ -82,16 +81,17 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
           publishVersion(host + "/version");
         });
 
-    reconnectMqtt.attach_ms(10000, [] {
+    reconnectMqtt.attach_ms(1000, [] {
       if (WiFi.isConnected()) {
         mqtt.connect();
       } else {
         WiFi.begin();
       }
     });
+  } else {
+    mqtt.disconnect();
+    reconnectMqtt.detach();
   }
-
-  return false;
 }
 
 void SwitchCommon::publishVersion(String topic) {
@@ -124,6 +124,8 @@ bool SwitchCommon::configure(const JsonVariantConst config) {
       MDNS.enableArduino(otaPort, otaPassword.length() > 0);
     }
     MDNS.addService("http", "tcp", 80);
+  } else {
+    MDNS.end();
   }
 
   if (otaEnabled) {
@@ -131,11 +133,12 @@ bool SwitchCommon::configure(const JsonVariantConst config) {
       ArduinoOTA.setPassword(otaPassword.c_str());
     }
     ArduinoOTA.setMdnsEnabled(false).begin();
+  } else {
+    ArduinoOTA.end();
   }
 
-  auto needsReboot = configureIo(config);
-  needsReboot |= configureMqtt(config, host);
-  return needsReboot;
+  configureMqtt(config, host);
+  return configureIo(config);
 }
 
 void SwitchCommon::onGetState(GetJsonStateHandler getState) {

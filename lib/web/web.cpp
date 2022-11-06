@@ -25,6 +25,9 @@ void Web::getStatus(AsyncWebServerRequest *req) {
   json["uptimeSeconds"] = millis() / 1000;
   json["version"] = BUILD_VERSION;
 
+  auto wifi = json.createNestedObject("wifi");
+  wifi["rssi"] = WiFi.RSSI();
+
   if (_appendStatus) {
     _appendStatus(json);
   }
@@ -37,7 +40,11 @@ void Web::getStatus(AsyncWebServerRequest *req) {
 void Web::getConfig(AsyncWebServerRequest *req) {
   if (_readConfig) {
     auto config = _readConfig();
-    req->send(200, "application/json", config);
+    String response;
+    serializeJson(*config, response);
+    delete config;
+
+    req->send(200, "application/json", response);
   } else {
     req->send(500, "text/html", "NO GET HANDLER");
   }
@@ -62,7 +69,9 @@ void Web::updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
     } else {
       req->send(500, "text/html", "NO SET HANDLER");
     }
+
     free(req->_tempObject);
+    req->_tempObject = NULL;
   }
 }
 

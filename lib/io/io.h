@@ -20,6 +20,7 @@ private:
   Ticker _ticker;
   static void handle(Io *instance);
   uint8_t _levelBlue[IO_CNT], _levelBlueTouched, _levelRed;
+  bool _initialized = false;
 
   TouchKeyHandler _touchDown, _touchPress;
   TouchVoidHandler _touchUp;
@@ -30,11 +31,10 @@ public:
 
   Touch touch[IO_CNT];
 
-  Io &useTouchPins(int8_t pin1, int8_t pin2 = -1, int8_t pin3 = -1);
+  bool usePins(int8_t touch1, int8_t touch2, int8_t touch3, int8_t led1,
+               int8_t led2, int8_t led3, int8_t redLed, bool invertRedLed);
   Io &setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
                    uint8_t red);
-  Io &useLedPins(int8_t pin1, int8_t pin2 = -1, int8_t pin3 = -1);
-  Io &useRedLedPin(int8_t pin, bool invert);
   Io &onTouchDown(TouchKeyHandler handler);
   Io &onTouchPress(TouchKeyHandler handler);
   Io &onTouchUp(TouchVoidHandler handler);

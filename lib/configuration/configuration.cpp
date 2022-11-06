@@ -4,13 +4,15 @@
 
 void Configuration::begin() { preferences.begin("ha-switch"); }
 
-void Configuration::read(JsonDocument &config) {
-  deserializeJson(config, readRaw());
-}
+DynamicJsonDocument *Configuration::read() {
+  if (!preferences.isKey(CONFIG_KEY)) {
+    return new DynamicJsonDocument(10);
+  }
 
-String Configuration::readRaw() {
-  return preferences.isKey(CONFIG_KEY) ? preferences.getString(CONFIG_KEY)
-                                       : "{}";
+  auto json = preferences.getString(CONFIG_KEY);
+  DynamicJsonDocument *config = new DynamicJsonDocument(json.length());
+  deserializeJson(*config, json);
+  return config;
 }
 
 void Configuration::update(String json) {

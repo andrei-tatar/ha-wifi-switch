@@ -10,8 +10,7 @@ private:
 
 public:
   void begin();
-  String readRaw();
-  void read(JsonDocument &doc);
+  DynamicJsonDocument *read();
   void update(String json);
 };
 
