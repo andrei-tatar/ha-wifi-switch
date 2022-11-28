@@ -15,20 +15,34 @@ void SwitchCommon::appendStatus(JsonVariant doc) const {
 }
 
 bool SwitchCommon::configureIo(const JsonVariantConst config) {
-  int8_t touch1 = config["pins"]["touch"][0] | -1;
-  int8_t touch2 = config["pins"]["touch"][1] | -1;
-  int8_t touch3 = config["pins"]["touch"][2] | -1;
+  auto pinsConfig = config["pins"];
+  auto pinsTouchConfig = pinsConfig["touch"];
+  int8_t touch1 = pinsTouchConfig[0] | -1;
+  int8_t touch2 = pinsTouchConfig[1] | -1;
+  int8_t touch3 = pinsTouchConfig[2] | -1;
 
-  int8_t led1 = config["pins"]["led"][0] | -1;
-  int8_t led2 = config["pins"]["led"][1] | -1;
-  int8_t led3 = config["pins"]["led"][2] | -1;
+  auto pinsLedConfig = pinsConfig["led"];
+  int8_t led1 = pinsLedConfig[0] | -1;
+  int8_t led2 = pinsLedConfig[1] | -1;
+  int8_t led3 = pinsLedConfig[2] | -1;
 
-  int8_t ledRed = config["pins"]["redLed"] | -1;
+  int8_t ledRed = pinsConfig["redLed"] | -1;
 
-  bool invertRedLed = config["pins"]["redLedInvert"] | false;
+  bool invertRedLed = pinsConfig["redLedInvert"] | false;
 
-  bool pinsChanged = _io.usePins(touch1, touch2, touch3, led1, led2, led3,
-                                 ledRed, invertRedLed);
+  auto pinsQtConfig = pinsConfig["qt"];
+  int8_t qtSda = pinsQtConfig["sda"] | -1;
+  int8_t qtScl = pinsQtConfig["scl"] | -1;
+  int8_t qtCh1 = pinsQtConfig["ch"][0] | -1;
+  int8_t qtCh2 = pinsQtConfig["ch"][1] | -1;
+  int8_t qtCh3 = pinsQtConfig["ch"][2] | -1;
+
+  bool pinsChanged = _io.useLedPins(led1, led2, led3, ledRed, invertRedLed);
+  if (qtSda != -1 && qtScl != -1) {
+    pinsChanged |= _io.useQtTouch(qtSda, qtScl, qtCh1, qtCh2, qtCh3);
+  } else {
+    pinsChanged |= _io.useTouchPins(touch1, touch2, touch3);
+  }
   _io.begin();
 
   return pinsChanged;

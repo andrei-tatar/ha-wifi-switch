@@ -1,6 +1,7 @@
 #ifndef _IO_H_
 #define _IO_H_
 
+#include "qt1070.h"
 #include "touch.h"
 #include "util.h"
 #include <ArduinoJson.h>
@@ -13,6 +14,8 @@ typedef std::function<void(void)> TouchVoidHandler;
 
 class Io {
 private:
+  Qt1070 _qt;
+  bool _useQt = false;
   Touch _touch[IO_CNT];
   int8_t _ledPins[IO_CNT];
   int8_t _ledRed;
@@ -31,8 +34,13 @@ private:
 public:
   Io();
 
-  bool usePins(int8_t touch1, int8_t touch2, int8_t touch3, int8_t led1,
-               int8_t led2, int8_t led3, int8_t redLed, bool invertRedLed);
+  bool useLedPins(int8_t led1, int8_t led2, int8_t led3, int8_t redLed,
+                  bool invertRedLed);
+
+  bool useTouchPins(int8_t touch1, int8_t touch2, int8_t touch3);
+  bool useQtTouch(int8_t sdaPin, int8_t sclPin, int8_t ch1, int8_t ch2,
+                  int8_t ch3);
+
   Io &setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
                    uint8_t red);
   Io &onTouchDown(TouchKeyHandler handler);
