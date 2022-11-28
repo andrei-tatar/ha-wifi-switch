@@ -10,9 +10,9 @@ Io::Io() {
 bool Io::usePins(int8_t touch1, int8_t touch2, int8_t touch3, int8_t led1,
                  int8_t led2, int8_t led3, int8_t redLed, bool invertRedLed) {
   bool pinsChanged = false;
-  pinsChanged |= touch[0].usePin(touch1);
-  pinsChanged |= touch[1].usePin(touch2);
-  pinsChanged |= touch[2].usePin(touch3);
+  pinsChanged |= _touch[0].usePin(touch1);
+  pinsChanged |= _touch[1].usePin(touch2);
+  pinsChanged |= _touch[2].usePin(touch3);
 
   pinsChanged |= _ledPins[0] != led1 || _ledPins[1] != led2 ||
                  _ledPins[2] != led3 || _ledRed != redLed;
@@ -44,7 +44,7 @@ void Io::begin() {
   }
 
   for (uint8_t i = 0; i < IO_CNT; i++)
-    touch[i].begin();
+    _touch[i].begin();
 
   _ticker.attach_ms(5, Io::handle, this);
 
@@ -58,8 +58,8 @@ void Io::handle(Io *instance) {
   auto now = millis();
 
   for (uint8_t i = 0; i < IO_CNT; i++) {
-    io.touch[i].handle();
-    if (pressed == -1 && io.touch[i].isPressed()) {
+    io._touch[i].handle();
+    if (pressed == -1 && io._touch[i].isPressed()) {
       pressed = i;
     }
   }
@@ -141,5 +141,17 @@ void Io::updateLeds() {
     if (_ledPins[i] != -1) {
       ledcWrite(i, 255 - (_pressed == i ? _levelBlueTouched : _levelBlue[i]));
     }
+  }
+}
+
+void Io::appendStatus(JsonVariant doc) const {
+  auto touchStatus = doc.createNestedArray("touch");
+  for (uint8_t i = 0; i < IO_CNT; i++) {
+    auto value = _touch[i].getValue();
+    if (value == 0)
+      continue;
+    auto parent = touchStatus.createNestedObject();
+    parent["value"] = value;
+    parent["threshold"] = _touch[i].getThreshold();
   }
 }

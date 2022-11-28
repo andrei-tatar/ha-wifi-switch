@@ -9,16 +9,7 @@ const String lastWillMessage = "{\"online\":false}";
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
 void SwitchCommon::appendStatus(JsonVariant doc) const {
-  auto touch = doc.createNestedArray("touch");
-  for (uint8_t i = 0; i < IO_CNT; i++) {
-    auto value = _io.touch[i].getValue();
-    if (value == 0)
-      continue;
-    auto parent = touch.createNestedObject();
-    parent["value"] = value;
-    parent["threshold"] = _io.touch[i].getThreshold();
-  }
-
+  _io.appendStatus(doc);
   auto mqttStatus = doc.createNestedObject("mqtt");
   mqttStatus["connected"] = mqtt.connected();
 }

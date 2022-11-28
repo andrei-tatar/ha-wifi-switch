@@ -3,6 +3,7 @@
 
 #include "touch.h"
 #include "util.h"
+#include <ArduinoJson.h>
 #include <Ticker.h>
 
 #define IO_CNT 3
@@ -12,6 +13,7 @@ typedef std::function<void(void)> TouchVoidHandler;
 
 class Io {
 private:
+  Touch _touch[IO_CNT];
   int8_t _ledPins[IO_CNT];
   int8_t _ledRed;
   bool _invertLedRed, _stableUpdated;
@@ -29,8 +31,6 @@ private:
 public:
   Io();
 
-  Touch touch[IO_CNT];
-
   bool usePins(int8_t touch1, int8_t touch2, int8_t touch3, int8_t led1,
                int8_t led2, int8_t led3, int8_t redLed, bool invertRedLed);
   Io &setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
@@ -39,6 +39,7 @@ public:
   Io &onTouchPress(TouchKeyHandler handler);
   Io &onTouchUp(TouchVoidHandler handler);
   void begin();
+  void appendStatus(JsonVariant doc) const;
 };
 
 #endif
