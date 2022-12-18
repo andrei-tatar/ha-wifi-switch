@@ -5,6 +5,7 @@
 
 AsyncMqttClient mqtt;
 Ticker reconnectMqtt;
+int reconnectWifiSkips = 0;
 const String lastWillMessage = "{\"online\":false}";
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
@@ -88,9 +89,13 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
 
     reconnectMqtt.attach_ms(1000, [] {
       if (WiFi.isConnected()) {
+        reconnectWifiSkips = 0;
         mqtt.connect();
       } else {
-        WiFi.begin();
+        if (++reconnectWifiSkips == 60) {
+          reconnectWifiSkips = 0;
+          WiFi.reconnect();
+        }
       }
     });
   } else {

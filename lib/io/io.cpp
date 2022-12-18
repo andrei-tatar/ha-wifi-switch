@@ -79,7 +79,7 @@ void Io::handle(Io *instance) {
     io._stablePressed = pressed;
     io._lastStableChange = now;
     io._stableUpdated = false;
-    io._debounce = 0; // no need to debounce, qt does it internally
+    io._debounce = MSEC(70);
   } else {
     for (uint8_t i = 0; i < IO_CNT; i++) {
       io._touch[i].handle();
