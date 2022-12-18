@@ -76,10 +76,12 @@ void Io::handle(Io *instance) {
   if (io._useQt) {
     pressed = io._qt.pressed();
 
-    io._stablePressed = pressed;
-    io._lastStableChange = now;
-    io._stableUpdated = false;
-    io._debounce = MSEC(70);
+    if (pressed != io._stablePressed) {
+      io._stablePressed = pressed;
+      io._lastStableChange = now;
+      io._stableUpdated = false;
+      io._debounce = MSEC(70);
+    }
   } else {
     for (uint8_t i = 0; i < IO_CNT; i++) {
       io._touch[i].handle();
