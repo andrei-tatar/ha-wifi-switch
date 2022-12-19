@@ -87,12 +87,12 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           publishVersion(host + "/version");
         });
 
-    reconnectMqtt.attach_ms(1000, [] {
+    reconnectMqtt.attach_ms(10000, [] {
       if (WiFi.isConnected()) {
         reconnectWifiSkips = 0;
         mqtt.connect();
       } else {
-        if (++reconnectWifiSkips == 60) {
+        if (++reconnectWifiSkips == 6) {
           reconnectWifiSkips = 0;
           WiFi.reconnect();
         }
