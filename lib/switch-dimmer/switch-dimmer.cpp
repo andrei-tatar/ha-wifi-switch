@@ -25,7 +25,7 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
       if (key == 0 || _wasOff) {
         return;
       }
-      _dimmer.changeBrightness(key == 1 ? 1 : -1);
+      _dimmer.changeBrightness(key == 1 ? -1 : 1);
     });
     _io.onTouchUp([this] {
       if (_suspendedWhileTouchDown) {
