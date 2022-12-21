@@ -1,4 +1,5 @@
 #include "web.h"
+
 using namespace std;
 using namespace std::placeholders;
 
@@ -11,6 +12,8 @@ void Web::begin(String type) {
   _server.on("/api/config", HTTP_GET, bind(&Web::getConfig, this, _1));
   _server.on("/api/config", HTTP_POST, NO_OP_REQ, NULL,
              bind(&Web::updateConfig, this, _1, _2, _3, _4, _5));
+  _server.on("/api/reboot", HTTP_POST, NO_OP_REQ, NULL,
+             bind(&Web::reboot, this, _1, _2, _3, _4, _5));
   _server.onNotFound(bind(&Web::handleNotFound, this, _1));
   _server.begin();
 }
@@ -73,6 +76,12 @@ void Web::updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
     free(req->_tempObject);
     req->_tempObject = NULL;
   }
+}
+
+void Web::reboot(AsyncWebServerRequest *req, uint8_t *data, size_t len,
+                 size_t index, size_t total) {
+  req->send(204);
+  _rebootTicker.once_ms(1500, []() { ESP.restart(); });
 }
 
 Web &Web::onReadConfig(ReadConfigHandler readConfig) {

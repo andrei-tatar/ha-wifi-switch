@@ -19,6 +19,7 @@ class SwitchBlinds : public SwitchBase {
   MotorState _motorState = Motor_Off;
   uint8_t _levelTouch, _levelRed, _levelChanging;
   int _position = -1;
+  int _pendingTarget = -1;
   int _targetPosition;
   int _maxPosition;
   uint32_t _motorChange;

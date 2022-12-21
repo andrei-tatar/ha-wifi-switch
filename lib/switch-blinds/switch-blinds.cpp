@@ -81,7 +81,9 @@ void SwitchBlinds::changeMotor(MotorState newState) {
 
   updateLevels();
 
-  raiseStateChanged();
+  if (_pendingTarget == -1) {
+    raiseStateChanged();
+  }
 }
 
 int SwitchBlinds::getCurrentPosition() const {
@@ -117,6 +119,12 @@ void SwitchBlinds::update() {
       changeMotor(Motor_Off);
     }
   }
+
+  if (_motorState == Motor_Off && _pendingTarget != -1) {
+    auto pending = _pendingTarget;
+    _pendingTarget = -1;
+    setTargetPosition(pending);
+  }
 }
 
 void SwitchBlinds::updateLevels() {
@@ -126,11 +134,6 @@ void SwitchBlinds::updateLevels() {
 }
 
 void SwitchBlinds::setTargetPosition(int target) {
-  if (_position == POSITION_UNKNOWN) {
-    // TODO: we need a calibration step
-    _position = 0;
-  }
-
   if (target < 0) {
     target = 0;
   }
@@ -138,7 +141,17 @@ void SwitchBlinds::setTargetPosition(int target) {
     target = _maxPosition;
   }
 
-  if (_targetPosition == target) {
+  if (_pendingTarget != -1) {
+    _pendingTarget = target;
+    return;
+  }
+
+  if (_position == POSITION_UNKNOWN) {
+    auto half = _maxPosition / 2;
+    _position = target < half ? _maxPosition : 0;
+    _pendingTarget = target;
+    target = target > half ? _maxPosition : 0;
+  } else if (_targetPosition == target) {
     return;
   }
 

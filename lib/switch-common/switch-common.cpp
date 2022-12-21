@@ -7,6 +7,7 @@ AsyncMqttClient mqtt;
 Ticker reconnectMqtt;
 int reconnectWifiSkips = 0;
 const String lastWillMessage = "{\"online\":false}";
+
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
 void SwitchCommon::appendStatus(JsonVariant doc) const {
@@ -74,7 +75,14 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             return;
           }
 
-          if (_stateChanged && _stateSetTopic == topic) {
+          bool isStateTopic;
+          if (_stateChanged && (_stateSetTopic == topic ||
+                                (isStateTopic = (_stateTopic == topic)))) {
+
+            if (isStateTopic) {
+              mqtt.unsubscribe(_stateTopic.c_str());
+            }
+
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) == 0) {
               _stateChanged(stateUpdate);
@@ -83,6 +91,11 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         })
         .onConnect([this, host](bool sessionPresent) {
           mqtt.subscribe(_stateSetTopic.c_str(), 1);
+
+          if (_stateChanged && _updateFromState) {
+            mqtt.subscribe(_stateTopic.c_str(), 1);
+          }
+
           publishState();
           publishVersion(host + "/version");
         });
@@ -157,4 +170,8 @@ void SwitchCommon::onGetState(GetJsonStateHandler getState) {
 
 void SwitchCommon::onStateChanged(JsonStateChangedHandler handler) {
   _stateChanged = handler;
+}
+
+void SwitchCommon::setUpdateFromInitialState(bool updateFromInitialState) {
+  _updateFromState = updateFromInitialState;
 }
