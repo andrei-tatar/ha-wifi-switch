@@ -24,8 +24,7 @@ private:
   void getStatus(AsyncWebServerRequest *req);
   void updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
                     size_t index, size_t total);
-  void reboot(AsyncWebServerRequest *req, uint8_t *data, size_t len,
-              size_t index, size_t total);
+  void reboot(AsyncWebServerRequest *req);
   void handleNotFound(AsyncWebServerRequest *req);
 
 public:

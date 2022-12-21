@@ -21,7 +21,7 @@ private:
   int8_t _ledRed;
   bool _invertLedRed, _stableUpdated;
   int8_t _pressed = -1, _stablePressed = -1, _debounce;
-  uint32_t _lastSentEvent, _lastStableChange;
+  uint32_t _lastSentEvent, _lastStableChange, _ignoreEventsStart;
   Ticker _ticker;
   static void handle(Io *instance);
   uint8_t _levelBlue[IO_CNT], _levelBlueTouched, _levelRed;

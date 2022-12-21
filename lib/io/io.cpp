@@ -73,6 +73,10 @@ void Io::handle(Io *instance) {
   int8_t pressed = -1;
   auto now = millis();
 
+  if (now <= io._ignoreEventsStart + 1000) {
+    return;
+  }
+
   if (io._useQt) {
     pressed = io._qt.pressed();
 
@@ -111,6 +115,8 @@ void Io::handle(Io *instance) {
         if (io._touchUp) {
           io._touchUp();
         }
+
+        io._stablePressed = -1;
       }
 
       io._pressed = io._stablePressed;
@@ -123,6 +129,7 @@ void Io::handle(Io *instance) {
       }
 
       io._lastSentEvent = now;
+      io._ignoreEventsStart = now;
     }
   }
 
