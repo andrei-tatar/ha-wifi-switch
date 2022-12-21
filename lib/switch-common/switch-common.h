@@ -14,6 +14,7 @@ class SwitchCommon {
   String _mdnsPassword;
   String _mdnsUser;
   uint16_t _mdnsPort;
+  String _onlineTopic;
   String _stateTopic;
   String _stateSetTopic;
   GetJsonStateHandler _getState;
