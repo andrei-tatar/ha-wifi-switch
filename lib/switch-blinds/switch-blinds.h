@@ -22,6 +22,7 @@ class SwitchBlinds : public SwitchBase {
   int _pendingTarget = -1;
   int _targetPosition;
   int _maxPosition;
+  int _openCloseDelta;
   uint32_t _motorChange;
   uint16_t _delayAfterOff;
   Ticker _ticker;

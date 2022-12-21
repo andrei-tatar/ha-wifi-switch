@@ -48,6 +48,7 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
   updateLevels();
 
   _maxPosition = config["travel"] | SECS(40);
+  _openCloseDelta = config["openCloseDelta"] | MSEC(1500);
 
   return needsReboot;
 }
@@ -91,9 +92,20 @@ int SwitchBlinds::getCurrentPosition() const {
     return _position;
   }
 
-  int8_t signOfChange = _motorState == Motor_Opening ? -1 : 1;
   uint32_t now = millis();
-  int currentPosition = _position + (now - _motorChange) * signOfChange;
+
+  int positionChange = now - _motorChange;
+  int8_t signOfChange;
+  if (_motorState == Motor_Closing) {
+    positionChange =
+        positionChange * _maxPosition / (_maxPosition - _openCloseDelta);
+    signOfChange = 1;
+  } else {
+    signOfChange = -1;
+  }
+
+  int currentPosition = _position + positionChange * signOfChange;
+
   if (currentPosition < 0) {
     currentPosition = 0;
   }

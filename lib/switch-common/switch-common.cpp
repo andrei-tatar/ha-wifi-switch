@@ -90,15 +90,15 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
         })
         .onConnect([this, host](bool sessionPresent) {
-          mqtt.subscribe(_stateSetTopic.c_str(), 1);
+          mqtt.subscribe(_stateSetTopic.c_str(), 0);
 
           if (_stateChanged && _updateFromState) {
-            mqtt.subscribe(_stateTopic.c_str(), 1);
+            mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
             publishState();
           }
           publishVersion(host + "/version");
-          mqtt.publish(_onlineTopic.c_str(), 1, true, "true");
+          mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
         });
 
     reconnectMqtt.attach_ms(5000, [] {
@@ -119,7 +119,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
 }
 
 void SwitchCommon::publishVersion(String topic) {
-  mqtt.publish(topic.c_str(), 1, true, BUILD_VERSION);
+  mqtt.publish(topic.c_str(), 0, true, BUILD_VERSION);
 }
 
 void SwitchCommon::publishState() {
@@ -131,7 +131,7 @@ void SwitchCommon::publishState() {
   _getState(stateJson);
   String state;
   serializeJson(stateJson, state);
-  mqtt.publish(_stateTopic.c_str(), 1, true, state.c_str());
+  mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());
 }
 
 bool SwitchCommon::configure(const JsonVariantConst config) {
