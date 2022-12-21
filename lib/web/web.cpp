@@ -29,6 +29,7 @@ void Web::getStatus(AsyncWebServerRequest *req) {
 
   auto wifi = json.createNestedObject("wifi");
   wifi["rssi"] = WiFi.RSSI();
+  wifi["ip"] = WiFi.localIP().toString();
 
   if (_appendStatus) {
     _appendStatus(json);
