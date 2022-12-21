@@ -26,9 +26,13 @@ void applyConfiguration(bool init) {
   auto config = configuration.read();
   auto needsReboot = switchCommon.configure(*config);
   String configType = (*config)["type"] | "undefined";
+
+  switchCommon.setUpdateFromInitialState(false);
   if (configType == "dimmer") {
+    switchCommon.setUpdateFromInitialState(true);
     needsReboot |= switchDimmer.configure(config->getMember("dimmer"));
   } else if (configType == "switch") {
+    switchCommon.setUpdateFromInitialState(true);
     needsReboot |= switchOnOff.configure(config->getMember("switch"));
   } else if (configType == "blinds") {
     needsReboot |= switchBlinds.configure(config->getMember("blinds"));
@@ -38,7 +42,7 @@ void applyConfiguration(bool init) {
   type = configType;
 
   if (!init && needsReboot) {
-    reboot.once_ms(1500, []() { esp_restart(); });
+    reboot.once_ms(1500, []() { ESP.restart(); });
   }
 
   delete config;

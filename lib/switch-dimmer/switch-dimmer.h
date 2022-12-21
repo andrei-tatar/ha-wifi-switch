@@ -14,6 +14,7 @@ class SwitchDimmer : public SwitchBase {
   bool _suspendedWhileTouchDown;
   uint8_t _onBlueLevel, _onBlueTouchLevel, _onRedLevel, _offBlueLevel,
       _offBlueTouchLevel, _offRedLevel;
+  uint32_t _touchDown;
 
   void updateLevels();
 

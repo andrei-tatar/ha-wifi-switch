@@ -1,6 +1,7 @@
 #include "io.h"
 
 #define IO_PRESS_REPEAT MSEC(25)
+#define IO_IGNORE_AFTER_TOUCH_UP MSEC(500)
 
 Io::Io() : _qt(Wire) {
   for (uint8_t i = 0; i < IO_CNT; i++)
@@ -73,6 +74,10 @@ void Io::handle(Io *instance) {
   int8_t pressed = -1;
   auto now = millis();
 
+  if (now <= io._ignoreEventsStart + IO_IGNORE_AFTER_TOUCH_UP) {
+    return;
+  }
+
   if (io._useQt) {
     pressed = io._qt.pressed();
 
@@ -110,6 +115,10 @@ void Io::handle(Io *instance) {
       if (io._pressed != -1) {
         if (io._touchUp) {
           io._touchUp();
+        }
+        if (io._pressed != -1) {
+          io._stablePressed = -1;
+          io._ignoreEventsStart = now;
         }
       }
 

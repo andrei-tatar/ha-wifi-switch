@@ -14,10 +14,12 @@ class SwitchCommon {
   String _mdnsPassword;
   String _mdnsUser;
   uint16_t _mdnsPort;
+  String _onlineTopic;
   String _stateTopic;
   String _stateSetTopic;
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
+  bool _updateFromState;
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
@@ -31,6 +33,7 @@ public:
   void appendStatus(JsonVariant doc) const;
   void publishState();
   void onStateChanged(JsonStateChangedHandler stateChanged);
+  void setUpdateFromInitialState(bool updateFromInitialState);
 };
 
 #endif
