@@ -117,6 +117,13 @@ int SwitchBlinds::getCurrentPosition() const {
 
 void SwitchBlinds::update() {
   if (_motorState == Motor_Off) {
+
+    if (_pendingTarget != -1) {
+      auto pending = _pendingTarget;
+      _pendingTarget = -1;
+      setTargetPosition(pending);
+    }
+
     return;
   }
 
@@ -130,12 +137,6 @@ void SwitchBlinds::update() {
     if (getCurrentPosition() >= _targetPosition) {
       changeMotor(Motor_Off);
     }
-  }
-
-  if (_motorState == Motor_Off && _pendingTarget != -1) {
-    auto pending = _pendingTarget;
-    _pendingTarget = -1;
-    setTargetPosition(pending);
   }
 }
 
@@ -182,6 +183,7 @@ void SwitchBlinds::appendState(JsonVariant doc) const {
     doc["target"] = _targetPosition;
     doc["current"] = getCurrentPosition();
     doc["motor"] = getMotorStatus();
+    doc["pendingTarget"] = _pendingTarget;
   }
 }
 

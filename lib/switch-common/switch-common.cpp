@@ -80,6 +80,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
                                 (isStateTopic = (_stateTopic == topic)))) {
 
             if (isStateTopic) {
+              _updateFromStateOnBoot = false;
               mqtt.unsubscribe(_stateTopic.c_str());
             }
 
@@ -92,7 +93,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .onConnect([this, host](bool sessionPresent) {
           mqtt.subscribe(_stateSetTopic.c_str(), 0);
 
-          if (_stateChanged && _updateFromState) {
+          if (_stateChanged && _updateFromStateOnBoot) {
             mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
             publishState();
@@ -172,6 +173,6 @@ void SwitchCommon::onStateChanged(JsonStateChangedHandler handler) {
   _stateChanged = handler;
 }
 
-void SwitchCommon::setUpdateFromInitialState(bool updateFromInitialState) {
-  _updateFromState = updateFromInitialState;
+void SwitchCommon::setUpdateFromStateOnBoot(bool updateFromStateOnBoot) {
+  _updateFromStateOnBoot = updateFromStateOnBoot;
 }

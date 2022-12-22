@@ -19,7 +19,7 @@ class SwitchCommon {
   String _stateSetTopic;
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
-  bool _updateFromState;
+  bool _updateFromStateOnBoot;
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
@@ -33,7 +33,7 @@ public:
   void appendStatus(JsonVariant doc) const;
   void publishState();
   void onStateChanged(JsonStateChangedHandler stateChanged);
-  void setUpdateFromInitialState(bool updateFromInitialState);
+  void setUpdateFromStateOnBoot(bool updateFromStateOnBoot);
 };
 
 #endif

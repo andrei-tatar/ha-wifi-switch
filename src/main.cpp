@@ -27,12 +27,16 @@ void applyConfiguration(bool init) {
   auto needsReboot = switchCommon.configure(*config);
   String configType = (*config)["type"] | "undefined";
 
-  switchCommon.setUpdateFromInitialState(false);
+  switchCommon.setUpdateFromStateOnBoot(false);
   if (configType == "dimmer") {
-    switchCommon.setUpdateFromInitialState(true);
+    if (init) {
+      switchCommon.setUpdateFromStateOnBoot(true);
+    }
     needsReboot |= switchDimmer.configure(config->getMember("dimmer"));
   } else if (configType == "switch") {
-    switchCommon.setUpdateFromInitialState(true);
+    if (init) {
+      switchCommon.setUpdateFromStateOnBoot(true);
+    }
     needsReboot |= switchOnOff.configure(config->getMember("switch"));
   } else if (configType == "blinds") {
     needsReboot |= switchBlinds.configure(config->getMember("blinds"));
