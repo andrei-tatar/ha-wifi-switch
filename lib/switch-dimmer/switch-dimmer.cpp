@@ -14,34 +14,36 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
     _dimmer.begin();
 
     _io.onTouchDown([this](int8_t key) {
-      _wasOff = !_dimmer.isOn();
-      if (!key || _wasOff) {
-        _dimmer.toggle();
-        _suspendedWhileTouchDown = false;
-      } else {
-        suspendStateChanges();
-        _touchDown = millis();
-        _suspendedWhileTouchDown = true;
-        _dimmer.changeBrightness(key == 1 ? 1 : -1);
-      }
-    });
-    _io.onTouchPress([this](int8_t key) {
-      if (!key || _wasOff) {
-        return;
-      }
-      if (millis() > _touchDown + TIMEOUT_FOR_CHANGES) {
-        _dimmer.changeBrightness(key == 1 ? -1 : 1);
-      }
-    });
-    _io.onTouchUp([this] {
-      if (millis() <= _touchDown + TIMEOUT_FOR_CHANGES && !_wasOff) {
-        _dimmer.toggle();
-      }
+      _dimmer.toggle();
 
-      if (_suspendedWhileTouchDown) {
-        resumeStateChanges();
-      }
+      // _wasOff = !_dimmer.isOn();
+      // if (!key || _wasOff) {
+      //    _dimmer.toggle();
+      //   _suspendedWhileTouchDown = false;
+      // } else {
+      //   suspendStateChanges();
+      //   _touchDown = millis();
+      //   _suspendedWhileTouchDown = true;
+      //   _dimmer.changeBrightness(key == 1 ? 1 : -1);
+      // }
     });
+    // _io.onTouchPress([this](int8_t key) {
+    //   if (!key || _wasOff) {
+    //     return;
+    //   }
+    //   if (millis() > _touchDown + TIMEOUT_FOR_CHANGES) {
+    //     _dimmer.changeBrightness(key == 1 ? -1 : 1);
+    //   }
+    // });
+    // _io.onTouchUp([this] {
+    //   if (millis() <= _touchDown + TIMEOUT_FOR_CHANGES && !_wasOff) {
+    //     _dimmer.toggle();
+    //   }
+
+    //   if (_suspendedWhileTouchDown) {
+    //     resumeStateChanges();
+    //   }
+    // });
 
     _dimmer.onStateChanged([this](bool on, uint8_t brightness) {
       updateLevels();

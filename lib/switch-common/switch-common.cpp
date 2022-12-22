@@ -79,7 +79,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           if (_stateChanged && (_stateSetTopic == topic ||
                                 (isStateTopic = (_stateTopic == topic)))) {
 
-            if (isStateTopic) {
+            if (isStateTopic && _updateFromStateOnBoot) {
               _updateFromStateOnBoot = false;
               mqtt.unsubscribe(_stateTopic.c_str());
             }
@@ -126,6 +126,11 @@ void SwitchCommon::publishVersion(String topic) {
 void SwitchCommon::publishState() {
   if (!_getState) {
     return;
+  }
+
+  if (_updateFromStateOnBoot) {
+    _updateFromStateOnBoot = false;
+    mqtt.unsubscribe(_stateTopic.c_str());
   }
 
   DynamicJsonDocument stateJson(500);
