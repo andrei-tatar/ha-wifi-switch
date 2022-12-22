@@ -107,42 +107,60 @@ void Dimmer::begin() {
   uint32_t _zeroIo =
       RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
 
-  _ticker.attach_ms(25, Dimmer::handle, this);
+  // _ticker.attach_ms(25, Dimmer::handle, this);
+
+  // const ulp_insn_t program[] = {
+  //     TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
+
+  //     M_LABEL(Label_Start),
+
+  //     WAIT_FOR_HIGH,                      // wait zero cross to become 1
+  //     LOAD_DELAY,                         // load delay into R0
+  //     M_BGE(Label_SkipDelays, OFF_TICKS), // skip pulsing if off
+
+  //     WAIT(1),      // wait
+  //     TRIAC_ON,     // triac on
+  //     LOAD_DELAY_C, // load (10msec-delay) into R0
+  //     WAIT(2),      // wait
+  //     TRIAC_OFF,    // triac off
+
+  //     I_DELAY(TICKS_BEFORE_OFF), // wait until next half period
+
+  //     LOAD_DELAY,   // load delay into R0
+  //     WAIT(3),      // wait
+  //     TRIAC_ON,     // triac on
+  //     LOAD_DELAY_C, // load (10msec-delay) into R0
+  //     WAIT(4),      // wait
+  //     TRIAC_OFF,    // triac off
+
+  //     M_BX(Label_LoadDelay),
+
+  //     M_LABEL(Label_SkipDelays),
+  //     WAIT_FOR_LOW, // wait for 0 (when dimmer is off)
+
+  //     // load the delay time from memory
+  //     M_LABEL(Label_LoadDelay),
+  //     I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
+
+  //     // start over again
+  //     M_BX(Label_Start),
+
+  //     I_HALT()};
 
   const ulp_insn_t program[] = {
-      TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
+      TRIAC_OFF,
+      I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
 
       M_LABEL(Label_Start),
 
-      WAIT_FOR_HIGH,                      // wait zero cross to become 1
-      LOAD_DELAY,                         // load delay into R0
+      I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
+      LOAD_DELAY,
       M_BGE(Label_SkipDelays, OFF_TICKS), // skip pulsing if off
-
-      WAIT(1),      // wait
-      TRIAC_ON,     // triac on
-      LOAD_DELAY_C, // load (10msec-delay) into R0
-      WAIT(2),      // wait
-      TRIAC_OFF,    // triac off
-
-      I_DELAY(TICKS_BEFORE_OFF), // wait until next half period
-
-      LOAD_DELAY,   // load delay into R0
-      WAIT(3),      // wait
-      TRIAC_ON,     // triac on
-      LOAD_DELAY_C, // load (10msec-delay) into R0
-      WAIT(4),      // wait
-      TRIAC_OFF,    // triac off
-
-      M_BX(Label_LoadDelay),
+      TRIAC_ON,                           // triac on
+      M_BX(Label_Start),
 
       M_LABEL(Label_SkipDelays),
-      WAIT_FOR_LOW, // wait for 0 (when dimmer is off)
-
-      // load the delay time from memory
-      M_LABEL(Label_LoadDelay),
-      I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
-
-      // start over again
+      TRIAC_OFF,
       M_BX(Label_Start),
 
       I_HALT()};
@@ -155,20 +173,20 @@ void Dimmer::begin() {
 }
 
 void Dimmer::handle(Dimmer *instance) {
-  Dimmer &dimmer = *instance;
-  auto targetBrightness =
-      dimmer._on ? dimmer._brightness : dimmer._minBrightness - 1;
-  if (dimmer._currentBrightness != targetBrightness) {
-    if (dimmer._currentBrightness < targetBrightness)
-      dimmer._currentBrightness++;
-    else
-      dimmer._currentBrightness--;
+  // Dimmer &dimmer = *instance;
+  // auto targetBrightness =
+  //     dimmer._on ? dimmer._brightness : dimmer._minBrightness - 1;
+  // if (dimmer._currentBrightness != targetBrightness) {
+  //   if (dimmer._currentBrightness < targetBrightness)
+  //     dimmer._currentBrightness++;
+  //   else
+  //     dimmer._currentBrightness--;
 
-    RTC_SLOW_MEM[Mem_Delay] =
-        dimmer._on || dimmer._currentBrightness != targetBrightness
-            ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
-            : OFF_TICKS;
-  }
+  //   RTC_SLOW_MEM[Mem_Delay] =
+  //       dimmer._on || dimmer._currentBrightness != targetBrightness
+  //           ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
+  //           : OFF_TICKS;
+  // }
 }
 
 void Dimmer::toggle() { setOn(!_on); }
@@ -193,6 +211,7 @@ void Dimmer::setBrightness(uint8_t brightness) {
 void Dimmer::setOn(bool on) {
   if (_on != on) {
     _on = on;
+    RTC_SLOW_MEM[Mem_Delay] = _on ? 1 : OFF_TICKS;
     raiseStateChanged();
   }
 }
