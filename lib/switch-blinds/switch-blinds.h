@@ -19,6 +19,7 @@ class SwitchBlinds : public SwitchBase {
   MotorState _motorState = Motor_Off;
   uint8_t _levelTouch, _levelRed, _levelChanging;
   int _position = -1;
+  bool _calibrating;
   int _pendingTarget = -1;
   int _targetPosition;
   int _maxPosition;
@@ -29,7 +30,7 @@ class SwitchBlinds : public SwitchBase {
 
   void updateLevels();
   void changeMotor(MotorState newState);
-  int getCurrentPosition() const;
+  int getCurrentPosition(bool limit = false) const;
   void setTargetPosition(int target);
   String getMotorStatus() const;
 
