@@ -1,4 +1,5 @@
 #include "switch-common.h"
+#include "esp32/rom/rtc.h"
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <Ticker.h>
@@ -6,6 +7,7 @@
 AsyncMqttClient mqtt;
 Ticker reconnectMqtt;
 int reconnectWifiSkips = 0;
+bool firstConnection = true;
 
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
@@ -100,6 +102,14 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
           publishVersion(host + "/version");
           mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
+
+          if (firstConnection) {
+            auto resetReason = rtc_get_reset_reason(0);
+            char resetReasonString[20];
+            snprintf(resetReasonString, 5, "%d", resetReason);
+            String resetReasonTopic = host + "/reset-reason";
+            mqtt.publish(resetReasonTopic.c_str(), 0, false, resetReasonString);
+          }
         });
 
     reconnectMqtt.attach_ms(5000, [] {
