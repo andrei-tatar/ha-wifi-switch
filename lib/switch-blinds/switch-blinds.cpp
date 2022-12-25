@@ -3,6 +3,7 @@
 #define POLL_INTERVAL MSEC(50)
 #define POSITION_UNKNOWN -1
 #define SAFETY_DELTA SECS(1)
+#define STATE_UPDATE_DELAY SECS(2)
 
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
 
@@ -19,10 +20,12 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
 
     if (_pinOpen != -1) {
       pinMode(_pinOpen, OUTPUT);
+      digitalWrite(_pinOpen, LOW);
     }
 
     if (_pinClose != -1) {
       pinMode(_pinClose, OUTPUT);
+      digitalWrite(_pinClose, LOW);
     }
 
     _ticker.attach_ms<SwitchBlinds *>(
@@ -93,7 +96,7 @@ void SwitchBlinds::changeMotor(MotorState newState) {
   updateLevels();
 
   if (_pendingTarget == -1 && !wasCalibrating) {
-    raiseStateChanged();
+    _sendState = millis() + STATE_UPDATE_DELAY;
   }
 }
 
@@ -126,6 +129,11 @@ int SwitchBlinds::getCurrentPosition(bool limit) const {
 }
 
 void SwitchBlinds::update() {
+  if (_sendState && millis() >= _sendState) {
+    _sendState = 0;
+    raiseStateChanged();
+  }
+
   if (_motorState == Motor_Off) {
 
     if (_pendingTarget != -1) {
