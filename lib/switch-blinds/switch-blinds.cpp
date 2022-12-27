@@ -3,7 +3,7 @@
 #define POLL_INTERVAL MSEC(50)
 #define POSITION_UNKNOWN -1
 #define SAFETY_DELTA SECS(1)
-#define STATE_UPDATE_DELAY SECS(2)
+#define STATE_UPDATE_DELAY SECS(5)
 
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
 
@@ -15,6 +15,8 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
   needsReboot = _pinOpen != pinOpen || _pinClose != pinClose;
 
   if (!_initialized) {
+    setCpuFrequencyMhz(80);
+
     _pinOpen = pinOpen;
     _pinClose = pinClose;
 
@@ -81,7 +83,6 @@ void SwitchBlinds::changeMotor(MotorState newState) {
 
   _motorState = newState;
 
-  bool wasCalibrating = _calibrating;
   if (_motorState == Motor_Off) {
     _targetPosition = _position;
     _calibrating = false;
@@ -95,7 +96,7 @@ void SwitchBlinds::changeMotor(MotorState newState) {
 
   updateLevels();
 
-  if (_pendingTarget == -1 && !wasCalibrating) {
+  if (_pendingTarget == -1 && !_calibrating) {
     _sendState = millis() + STATE_UPDATE_DELAY;
   }
 }
