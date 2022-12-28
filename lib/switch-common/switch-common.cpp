@@ -119,7 +119,8 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           reconnectWifiSkips = 0;
 
           WiFi.mode(WIFI_STA);
-          WiFi.reconnect();
+          WiFi.disconnect();
+          WiFi.begin();
         }
       }
     });
@@ -156,8 +157,6 @@ void SwitchCommon::publishStateInternal(bool resetSetTopic) {
 void SwitchCommon::publishState() { publishStateInternal(true); }
 
 bool SwitchCommon::configure(const JsonVariantConst config) {
-  setCpuFrequencyMhz(80);
-
   bool otaEnabled = config["ota"]["enabled"] | true;
   String otaPassword = config["ota"]["password"] | "";
   String host = config["mdns"]["host"] | "ha-switch";

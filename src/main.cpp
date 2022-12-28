@@ -53,6 +53,8 @@ void applyConfiguration(bool init) {
 }
 
 void setup() {
+  setCpuFrequencyMhz(80);
+
   configuration.begin();
 
   WiFi.mode(WIFI_STA);
