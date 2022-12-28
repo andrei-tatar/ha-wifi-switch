@@ -15,8 +15,6 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
   needsReboot = _pinOpen != pinOpen || _pinClose != pinClose;
 
   if (!_initialized) {
-    setCpuFrequencyMhz(80);
-
     _pinOpen = pinOpen;
     _pinClose = pinClose;
 

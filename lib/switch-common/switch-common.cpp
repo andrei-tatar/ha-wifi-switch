@@ -69,7 +69,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
 
     mqtt.setServer(_mdnsHost.c_str(), _mdnsPort)
         .setCredentials(_mdnsUser.c_str(), _mdnsPassword.c_str())
-        .setWill(_onlineTopic.c_str(), 1, true, "false")
+        .setWill(_onlineTopic.c_str(), 0, true, "false")
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
                           size_t len, size_t index, size_t total) {
@@ -77,28 +77,26 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             return;
           }
 
-          bool isStateTopic;
-          if (_stateChanged && (_stateSetTopic == topic ||
-                                (isStateTopic = (_stateTopic == topic)))) {
-
-            if (isStateTopic && _updateFromStateOnBoot) {
+          if (_stateSetTopic == topic || _stateTopic == topic) {
+            if (_updateFromStateOnBoot) {
               _updateFromStateOnBoot = false;
               mqtt.unsubscribe(_stateTopic.c_str());
+              mqtt.subscribe(_stateSetTopic.c_str(), 0);
             }
 
             DynamicJsonDocument stateUpdate(500);
-            if (deserializeJson(stateUpdate, payload, len) == 0) {
+            if (deserializeJson(stateUpdate, payload, len) ==
+                DeserializationError::Code::Ok) {
               _stateChanged(stateUpdate);
             }
           }
         })
         .onConnect([this, host](bool sessionPresent) {
-          mqtt.subscribe(_stateSetTopic.c_str(), 0);
-
-          if (_stateChanged && _updateFromStateOnBoot) {
+          if (_updateFromStateOnBoot) {
             mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
-            publishState();
+            mqtt.subscribe(_stateSetTopic.c_str(), 0);
+            publishStateInternal(false);
           }
           publishVersion(host + "/version");
           mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
@@ -119,6 +117,8 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
       } else {
         if (++reconnectWifiSkips == 12) {
           reconnectWifiSkips = 0;
+
+          WiFi.mode(WIFI_STA);
           WiFi.reconnect();
         }
       }
@@ -133,7 +133,7 @@ void SwitchCommon::publishVersion(String topic) {
   mqtt.publish(topic.c_str(), 0, true, BUILD_VERSION);
 }
 
-void SwitchCommon::publishState() {
+void SwitchCommon::publishStateInternal(bool resetSetTopic) {
   if (!_getState) {
     return;
   }
@@ -141,6 +141,9 @@ void SwitchCommon::publishState() {
   if (_updateFromStateOnBoot) {
     _updateFromStateOnBoot = false;
     mqtt.unsubscribe(_stateTopic.c_str());
+    mqtt.subscribe(_stateSetTopic.c_str(), 0);
+  } else if (resetSetTopic) {
+    mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
   }
 
   DynamicJsonDocument stateJson(500);
@@ -150,7 +153,11 @@ void SwitchCommon::publishState() {
   mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());
 }
 
+void SwitchCommon::publishState() { publishStateInternal(true); }
+
 bool SwitchCommon::configure(const JsonVariantConst config) {
+  setCpuFrequencyMhz(80);
+
   bool otaEnabled = config["ota"]["enabled"] | true;
   String otaPassword = config["ota"]["password"] | "";
   String host = config["mdns"]["host"] | "ha-switch";

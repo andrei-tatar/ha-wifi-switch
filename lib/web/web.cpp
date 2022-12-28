@@ -26,6 +26,7 @@ void Web::getStatus(AsyncWebServerRequest *req) {
   json["freeHeap"] = ESP.getFreeHeap();
   json["uptimeSeconds"] = millis() / 1000;
   json["version"] = BUILD_VERSION;
+  json["cpuFreqMhz"] = getCpuFrequencyMhz();
 
   auto wifi = json.createNestedObject("wifi");
   wifi["rssi"] = WiFi.RSSI();
