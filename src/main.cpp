@@ -58,6 +58,7 @@ void setup() {
   configuration.begin();
 
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(true);
   WiFi.begin();
 
   applyConfiguration(true);
