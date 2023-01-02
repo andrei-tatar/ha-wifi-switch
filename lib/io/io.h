@@ -12,11 +12,14 @@
 typedef std::function<void(int8_t key)> TouchKeyHandler;
 typedef std::function<void(void)> TouchVoidHandler;
 
+typedef enum Use { UseNone, UseTouch, UseQt, UseIo };
+
 class Io {
 private:
   Qt1070 _qt;
-  bool _useQt = false;
+  Use _use = UseNone;
   Touch _touch[IO_CNT];
+  int8_t _inputs[IO_CNT];
   int8_t _ledPins[IO_CNT];
   int8_t _ledRed;
   bool _invertLedRed, _stableUpdated;
@@ -40,6 +43,7 @@ public:
   bool useTouchPins(int8_t touch1, int8_t touch2, int8_t touch3);
   bool useQtTouch(int8_t sdaPin, int8_t sclPin, int8_t ch1, int8_t ch2,
                   int8_t ch3);
+  bool useInputPins(int8_t i1, int8_t i2, int8_t i3);
 
   Io &setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
                    uint8_t red);

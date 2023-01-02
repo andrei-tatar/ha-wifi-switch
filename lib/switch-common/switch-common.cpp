@@ -19,31 +19,35 @@ void SwitchCommon::appendStatus(JsonVariant doc) const {
 
 bool SwitchCommon::configureIo(const JsonVariantConst config) {
   auto pinsConfig = config["pins"];
-  auto pinsTouchConfig = pinsConfig["touch"];
-  int8_t touch1 = pinsTouchConfig[0] | -1;
-  int8_t touch2 = pinsTouchConfig[1] | -1;
-  int8_t touch3 = pinsTouchConfig[2] | -1;
 
   auto pinsLedConfig = pinsConfig["led"];
   int8_t led1 = pinsLedConfig[0] | -1;
   int8_t led2 = pinsLedConfig[1] | -1;
   int8_t led3 = pinsLedConfig[2] | -1;
-
   int8_t ledRed = pinsConfig["redLed"] | -1;
-
   bool invertRedLed = pinsConfig["redLedInvert"] | false;
+  bool pinsChanged = _io.useLedPins(led1, led2, led3, ledRed, invertRedLed);
 
   auto pinsQtConfig = pinsConfig["qt"];
-  int8_t qtSda = pinsQtConfig["sda"] | -1;
-  int8_t qtScl = pinsQtConfig["scl"] | -1;
-  int8_t qtCh1 = pinsQtConfig["ch"][0] | -1;
-  int8_t qtCh2 = pinsQtConfig["ch"][1] | -1;
-  int8_t qtCh3 = pinsQtConfig["ch"][2] | -1;
+  auto inputPinsConfig = pinsConfig["input"];
+  auto pinsTouchConfig = pinsConfig["touch"];
 
-  bool pinsChanged = _io.useLedPins(led1, led2, led3, ledRed, invertRedLed);
-  if (qtSda != -1 && qtScl != -1) {
+  if (!pinsQtConfig.isNull()) {
+    int8_t qtSda = pinsQtConfig["sda"] | -1;
+    int8_t qtScl = pinsQtConfig["scl"] | -1;
+    int8_t qtCh1 = pinsQtConfig["ch"][0] | -1;
+    int8_t qtCh2 = pinsQtConfig["ch"][1] | -1;
+    int8_t qtCh3 = pinsQtConfig["ch"][2] | -1;
     pinsChanged |= _io.useQtTouch(qtSda, qtScl, qtCh1, qtCh2, qtCh3);
-  } else {
+  } else if (!inputPinsConfig.isNull()) {
+    int8_t input1 = inputPinsConfig[0] | -1;
+    int8_t input2 = inputPinsConfig[1] | -1;
+    int8_t input3 = inputPinsConfig[2] | -1;
+    pinsChanged |= _io.useInputPins(input1, input2, input3);
+  } else if (!pinsTouchConfig.isNull()) {
+    int8_t touch1 = pinsTouchConfig[0] | -1;
+    int8_t touch2 = pinsTouchConfig[1] | -1;
+    int8_t touch3 = pinsTouchConfig[2] | -1;
     pinsChanged |= _io.useTouchPins(touch1, touch2, touch3);
   }
   _io.begin();
