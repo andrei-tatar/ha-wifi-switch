@@ -10,10 +10,10 @@ typedef std::function<void(JsonVariant state)> JsonStateChangedHandler;
 
 class SwitchCommon {
   Io &_io;
-  String _mdnsHost;
-  String _mdnsPassword;
-  String _mdnsUser;
-  uint16_t _mdnsPort;
+  String _mqttHost;
+  String _mqttPassword;
+  String _mqttUser;
+  uint16_t _mqttPort;
   String _onlineTopic;
   String _stateTopic;
   String _stateSetTopic;
@@ -23,7 +23,6 @@ class SwitchCommon {
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
-  void publishVersion(String topic);
   void publishStateInternal(bool resetSetTopic);
 
 public:

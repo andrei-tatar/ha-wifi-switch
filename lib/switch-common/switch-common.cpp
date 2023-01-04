@@ -57,22 +57,24 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
 
 void SwitchCommon::configureMqtt(const JsonVariantConst config,
                                  const String host) {
-  auto mdnsConfig = config["mqtt"];
+  auto mqttConfig = config["mqtt"];
 
-  _mdnsHost = mdnsConfig["host"] | "";
-  _mdnsPassword = mdnsConfig["password"] | "";
-  _mdnsUser = mdnsConfig["user"] | "";
-  _mdnsPort = mdnsConfig["port"] | 1883;
+  _mqttHost = mqttConfig["host"] | "";
+  _mqttPassword = mqttConfig["password"] | "";
+  _mqttUser = mqttConfig["user"] | "";
+  _mqttPort = mqttConfig["port"] | 1883;
+  String mqttPrefix = mqttConfig["prefix"] | "ha-switch";
+  mqttPrefix += "/";
 
-  if (_mdnsHost.length() && _mdnsPassword.length() && _mdnsUser.length() &&
-      _mdnsPassword.length()) {
+  if (_mqttHost.length() && _mqttPassword.length() && _mqttUser.length() &&
+      _mqttPassword.length()) {
 
-    _onlineTopic = host + "/online";
-    _stateTopic = host + "/state";
+    _onlineTopic = mqttPrefix + host + "/online";
+    _stateTopic = mqttPrefix + host + "/state";
     _stateSetTopic = _stateTopic + "/set";
 
-    mqtt.setServer(_mdnsHost.c_str(), _mdnsPort)
-        .setCredentials(_mdnsUser.c_str(), _mdnsPassword.c_str())
+    mqtt.setServer(_mqttHost.c_str(), _mqttPort)
+        .setCredentials(_mqttUser.c_str(), _mqttPassword.c_str())
         .setWill(_onlineTopic.c_str(), 0, true, "false")
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
@@ -95,21 +97,22 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             }
           }
         })
-        .onConnect([this, host](bool sessionPresent) {
+        .onConnect([this, host, mqttPrefix](bool sessionPresent) {
           if (_updateFromStateOnBoot) {
             mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
             mqtt.subscribe(_stateSetTopic.c_str(), 0);
             publishStateInternal(false);
           }
-          publishVersion(host + "/version");
+          mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
+                       BUILD_VERSION);
           mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
 
           if (firstConnection) {
             auto resetReason = rtc_get_reset_reason(0);
             char resetReasonString[20];
             snprintf(resetReasonString, 5, "%d", resetReason);
-            String resetReasonTopic = host + "/reset-reason";
+            String resetReasonTopic = mqttPrefix + host + "/reset-reason";
             mqtt.publish(resetReasonTopic.c_str(), 0, false, resetReasonString);
           }
         });
@@ -132,10 +135,6 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     mqtt.disconnect();
     reconnectMqtt.detach();
   }
-}
-
-void SwitchCommon::publishVersion(String topic) {
-  mqtt.publish(topic.c_str(), 0, true, BUILD_VERSION);
 }
 
 void SwitchCommon::publishStateInternal(bool resetSetTopic) {

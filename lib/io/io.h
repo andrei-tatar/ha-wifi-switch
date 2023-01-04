@@ -12,7 +12,7 @@
 typedef std::function<void(int8_t key)> TouchKeyHandler;
 typedef std::function<void(void)> TouchVoidHandler;
 
-typedef enum Use { UseNone, UseTouch, UseQt, UseIo };
+enum Use { UseNone, UseTouch, UseQt, UseIo };
 
 class Io {
 private:
