@@ -11,6 +11,7 @@
 #define REG_DI 46
 #define REG_MAXCAL_GUARD 53
 #define REG_LP_MODE 54
+#define REG_MAX_ON 55
 #define REG_CALIBRATE 56
 #define REG_RESET 57
 
@@ -37,8 +38,8 @@ void Qt1070::begin() {
   // disable guard channel
   uint8_t currentValue = readRegister(REG_MAXCAL_GUARD);
   writeRegister(REG_MAXCAL_GUARD, currentValue | 0x0F);
-
   writeRegister(REG_LP_MODE, 16); // 128 msec
+  writeRegister(REG_MAX_ON, 38);  // ~10 sec
 
   for (uint8_t i = 0; i < 7; i++) {
     bool chEnabled = false;

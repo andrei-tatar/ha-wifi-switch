@@ -4,6 +4,7 @@
 #include "io.h"
 #include <ArduinoJson.h>
 #include <AsyncMqttClient.h>
+#include <Ticker.h>
 
 typedef std::function<void(JsonVariant state)> GetJsonStateHandler;
 typedef std::function<void(JsonVariant state)> JsonStateChangedHandler;
@@ -20,10 +21,19 @@ class SwitchCommon {
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
   bool _updateFromStateOnBoot;
+  AsyncMqttClient _mqtt;
+  Ticker _timer;
+  int _reconnectWifiSkips = 0;
+  int _sendStateSkips = 0;
+  bool _firstConnection = true;
+  uint32_t _connectedAt;
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
   void publishStateInternal(bool resetSetTopic);
+  void unsubsribeFromState();
+
+  static void handle(SwitchCommon *instance);
 
 public:
   SwitchCommon(Io &io);

@@ -4,17 +4,12 @@
 #include <ESPmDNS.h>
 #include <Ticker.h>
 
-AsyncMqttClient mqtt;
-Ticker reconnectMqtt;
-int reconnectWifiSkips = 0;
-bool firstConnection = true;
-
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
 void SwitchCommon::appendStatus(JsonVariant doc) const {
   _io.appendStatus(doc);
   auto mqttStatus = doc.createNestedObject("mqtt");
-  mqttStatus["connected"] = mqtt.connected();
+  mqttStatus["connected"] = _mqtt.connected();
 }
 
 bool SwitchCommon::configureIo(const JsonVariantConst config) {
@@ -73,7 +68,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     _stateTopic = mqttPrefix + host + "/state";
     _stateSetTopic = _stateTopic + "/set";
 
-    mqtt.setServer(_mqttHost.c_str(), _mqttPort)
+    _mqtt.setServer(_mqttHost.c_str(), _mqttPort)
         .setCredentials(_mqttUser.c_str(), _mqttPassword.c_str())
         .setWill(_onlineTopic.c_str(), 0, true, "false")
         .onMessage([this](char *topic, const char *payload,
@@ -84,11 +79,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
 
           if (_stateSetTopic == topic || _stateTopic == topic) {
-            if (_updateFromStateOnBoot) {
-              _updateFromStateOnBoot = false;
-              mqtt.unsubscribe(_stateTopic.c_str());
-              mqtt.subscribe(_stateSetTopic.c_str(), 0);
-            }
+            unsubsribeFromState();
 
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) ==
@@ -98,42 +89,59 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
         })
         .onConnect([this, host, mqttPrefix](bool sessionPresent) {
+          _connectedAt = millis();
+
           if (_updateFromStateOnBoot) {
-            mqtt.subscribe(_stateTopic.c_str(), 0);
+            _mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
-            mqtt.subscribe(_stateSetTopic.c_str(), 0);
+            _mqtt.subscribe(_stateSetTopic.c_str(), 0);
             publishStateInternal(false);
           }
-          mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
-                       BUILD_VERSION);
-          mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
+          _mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
+                        BUILD_VERSION);
+          _mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
 
-          if (firstConnection) {
+          if (_firstConnection) {
             auto resetReason = rtc_get_reset_reason(0);
             char resetReasonString[20];
             snprintf(resetReasonString, 5, "%d", resetReason);
             String resetReasonTopic = mqttPrefix + host + "/reset-reason";
-            mqtt.publish(resetReasonTopic.c_str(), 0, false, resetReasonString);
+            _mqtt.publish(resetReasonTopic.c_str(), 0, false,
+                          resetReasonString);
           }
         });
 
-    reconnectMqtt.attach_ms(5000, [] {
-      if (WiFi.isConnected()) {
-        reconnectWifiSkips = 0;
-        mqtt.connect();
-      } else {
-        if (++reconnectWifiSkips == 12) {
-          reconnectWifiSkips = 0;
-
-          WiFi.mode(WIFI_STA);
-          WiFi.disconnect();
-          WiFi.begin();
-        }
-      }
-    });
+    _timer.attach_ms(SECS(1), SwitchCommon::handle, this);
   } else {
-    mqtt.disconnect();
-    reconnectMqtt.detach();
+    _mqtt.disconnect();
+    _timer.detach();
+  }
+}
+
+void SwitchCommon::handle(SwitchCommon *instance) {
+  SwitchCommon &me = *instance;
+  auto now = millis();
+  if (WiFi.isConnected()) {
+    me._reconnectWifiSkips = 0;
+    me._mqtt.connect();
+
+    if (now > me._connectedAt + 5000) {
+      me.unsubsribeFromState();
+    }
+
+    if (++me._sendStateSkips == 300) {
+      me._sendStateSkips = 0;
+      me.publishStateInternal(false);
+    }
+  } else {
+    me._sendStateSkips = 0;
+    if (++me._reconnectWifiSkips == 60) {
+      me._reconnectWifiSkips = 0;
+
+      WiFi.mode(WIFI_STA);
+      WiFi.disconnect();
+      WiFi.begin();
+    }
   }
 }
 
@@ -142,19 +150,16 @@ void SwitchCommon::publishStateInternal(bool resetSetTopic) {
     return;
   }
 
-  if (_updateFromStateOnBoot) {
-    _updateFromStateOnBoot = false;
-    mqtt.unsubscribe(_stateTopic.c_str());
-    mqtt.subscribe(_stateSetTopic.c_str(), 0);
-  } else if (resetSetTopic) {
-    mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
+  if (resetSetTopic) {
+    unsubsribeFromState();
+    _mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
   }
 
   DynamicJsonDocument stateJson(500);
   _getState(stateJson);
   String state;
   serializeJson(stateJson, state);
-  mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());
+  _mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());
 }
 
 void SwitchCommon::publishState() { publishStateInternal(true); }
@@ -199,4 +204,12 @@ void SwitchCommon::onStateChanged(JsonStateChangedHandler handler) {
 
 void SwitchCommon::setUpdateFromStateOnBoot(bool updateFromStateOnBoot) {
   _updateFromStateOnBoot = updateFromStateOnBoot;
+}
+
+void SwitchCommon::unsubsribeFromState() {
+  if (_updateFromStateOnBoot) {
+    _updateFromStateOnBoot = false;
+    _mqtt.unsubscribe(_stateTopic.c_str());
+    _mqtt.subscribe(_stateSetTopic.c_str(), 0);
+  }
 }

@@ -76,10 +76,9 @@ void setup() {
     switchOnOff.appendState(state);
     switchBlinds.appendState(state);
   });
-  auto publishState = std::bind(&SwitchCommon::publishState, switchCommon);
-  switchDimmer.onStateChanged(publishState);
-  switchOnOff.onStateChanged(publishState);
-  switchBlinds.onStateChanged(publishState);
+  switchDimmer.onStateChanged([] { switchCommon.publishState(); });
+  switchOnOff.onStateChanged([] { switchCommon.publishState(); });
+  switchBlinds.onStateChanged([] { switchCommon.publishState(); });
   switchCommon.onStateChanged([](JsonVariantConst state) {
     switchDimmer.updateState(state);
     switchOnOff.updateState(state);
