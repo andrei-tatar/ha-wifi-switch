@@ -102,6 +102,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           _mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
 
           if (_firstConnection) {
+            _firstConnection = false;
             auto resetReason = rtc_get_reset_reason(0);
             char resetReasonString[20];
             snprintf(resetReasonString, 5, "%d", resetReason);
