@@ -1,6 +1,8 @@
 #include "switch-base.h"
 #include "util.h"
 
+#define THROTTLE_STATE_TIME MSEC(500)
+
 void SwitchBase::raiseStateChanged() {
   if (_handler) {
     if (_suspendStateChanges) {
@@ -9,12 +11,13 @@ void SwitchBase::raiseStateChanged() {
       _pendingChanges = false;
 
       auto now = millis();
-      if (now - _lastSend > MSEC(500)) {
+      if (now - _lastSend >= THROTTLE_STATE_TIME) {
         _lastSend = now;
         _handler();
       } else {
         _throttle.once_ms<SwitchBase *>(
-            500, [](SwitchBase *arg) { arg->raiseStateChanged(); }, this);
+            THROTTLE_STATE_TIME,
+            [](SwitchBase *arg) { arg->raiseStateChanged(); }, this);
       }
     }
   }

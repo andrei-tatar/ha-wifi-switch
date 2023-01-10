@@ -27,7 +27,6 @@ class SwitchBlinds : public SwitchBase {
   uint32_t _motorChange;
   uint16_t _delayAfterOff;
   Ticker _ticker;
-  uint32_t _sendState = 0;
 
   void updateLevels();
   void changeMotor(MotorState newState);

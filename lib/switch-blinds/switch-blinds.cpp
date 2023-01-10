@@ -3,7 +3,6 @@
 #define POLL_INTERVAL MSEC(50)
 #define POSITION_UNKNOWN -1
 #define SAFETY_DELTA SECS(1)
-#define STATE_UPDATE_DELAY SECS(5)
 
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
 
@@ -94,9 +93,7 @@ void SwitchBlinds::changeMotor(MotorState newState) {
 
   updateLevels();
 
-  if (_pendingTarget == -1 && !_calibrating) {
-    _sendState = millis() + STATE_UPDATE_DELAY;
-  }
+  raiseStateChanged();
 }
 
 int SwitchBlinds::getCurrentPosition(bool limit) const {
@@ -128,11 +125,6 @@ int SwitchBlinds::getCurrentPosition(bool limit) const {
 }
 
 void SwitchBlinds::update() {
-  if (_sendState && millis() >= _sendState) {
-    _sendState = 0;
-    raiseStateChanged();
-  }
-
   if (_motorState == Motor_Off) {
 
     if (_pendingTarget != -1) {
