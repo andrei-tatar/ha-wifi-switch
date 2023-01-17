@@ -126,7 +126,8 @@ void SwitchCommon::handle(SwitchCommon *instance) {
     me._reconnectWifiSkips = 0;
     me._mqtt.connect();
 
-    if (now > me._connectedAt + 5000) {
+    if (me._connectedAt && now > me._connectedAt + 5000) {
+      me._connectedAt = 0;
       me.unsubsribeFromState();
     }
 

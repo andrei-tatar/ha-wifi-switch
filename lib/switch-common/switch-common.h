@@ -26,7 +26,7 @@ class SwitchCommon {
   int _reconnectWifiSkips = 0;
   int _sendStateSkips = 0;
   bool _firstConnection = true;
-  uint32_t _connectedAt;
+  uint32_t _connectedAt = 0;
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
