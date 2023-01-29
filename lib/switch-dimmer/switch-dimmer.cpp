@@ -13,20 +13,19 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
   if (!_initialized) {
     _dimmer.begin();
 
-    _io.onTouchDown([this](int8_t key) {
-      _dimmer.toggle();
+    _io.onTouchDown([this](int8_t key) { _dimmer.toggle(); });
 
-      // _wasOff = !_dimmer.isOn();
-      // if (!key || _wasOff) {
-      //    _dimmer.toggle();
-      //   _suspendedWhileTouchDown = false;
-      // } else {
-      //   suspendStateChanges();
-      //   _touchDown = millis();
-      //   _suspendedWhileTouchDown = true;
-      //   _dimmer.changeBrightness(key == 1 ? 1 : -1);
-      // }
-    });
+    // _io.onTouchDown([this](int8_t key) {
+    //   _wasOff = !_dimmer.isOn();
+    //   if (!key || _wasOff) {
+    //     _dimmer.toggle();
+    //     _suspendedWhileTouchDown = false;
+    //   } else {
+    //     suspendStateChanges();
+    //     _touchDown = millis();
+    //     _suspendedWhileTouchDown = true;
+    //   }
+    // });
     // _io.onTouchPress([this](int8_t key) {
     //   if (!key || _wasOff) {
     //     return;
@@ -59,10 +58,6 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
     }
     _dimmer.setBrightnessCurve(curve);
   }
-
-  uint8_t min = config["min"] | 1;
-  uint8_t max = config["max"] | 100;
-  _dimmer.setMinMax(min, max);
 
   auto onLevels = config["levels"]["on"];
   auto offLevels = config["levels"]["off"];
@@ -110,7 +105,12 @@ void SwitchDimmer::updateState(JsonVariantConst state) {
 
   auto stateBrightness = state["brightness"];
   if (stateBrightness.is<uint8_t>()) {
-    _dimmer.setBrightness(stateBrightness);
+    auto forSeconds = state["for"];
+    if (forSeconds.is<uint16_t>()) {
+      _dimmer.setMinBrightnessFor(stateBrightness, forSeconds);
+    } else {
+      _dimmer.setBrightness(stateBrightness);
+    }
   }
 
   resumeStateChanges();

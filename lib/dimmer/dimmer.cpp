@@ -65,7 +65,7 @@ enum Memory {
 
 Dimmer::Dimmer()
     : _pinZero(-1), _pinTriac(-1), _brightness(100), _currentBrightness(0),
-      _minBrightness(1), _maxBrightness(100),
+      _minBrightness(1),
       _on(false), _curve{8998, 8991, 8980, 8965, 8945, 8921, 8893, 8860, 8823,
                          8782, 8737, 8688, 8634, 8576, 8515, 8450, 8380, 8307,
                          8231, 8150, 8066, 7979, 7888, 7794, 7697, 7596, 7493,
@@ -107,7 +107,7 @@ void Dimmer::begin() {
   uint32_t _zeroIo =
       RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
 
-  // _ticker.attach_ms(25, Dimmer::handle, this);
+  _ticker.attach_ms(25, Dimmer::handle, this);
 
   // const ulp_insn_t program[] = {
   //     TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
@@ -173,20 +173,27 @@ void Dimmer::begin() {
 }
 
 void Dimmer::handle(Dimmer *instance) {
-  // Dimmer &dimmer = *instance;
-  // auto targetBrightness =
-  //     dimmer._on ? dimmer._brightness : dimmer._minBrightness - 1;
-  // if (dimmer._currentBrightness != targetBrightness) {
-  //   if (dimmer._currentBrightness < targetBrightness)
-  //     dimmer._currentBrightness++;
-  //   else
-  //     dimmer._currentBrightness--;
+  Dimmer &dimmer = *instance;
+  if (dimmer._minBrightnessUntil && millis() > dimmer._minBrightnessUntil) {
+    dimmer._minBrightnessUntil = 0;
+    dimmer._minBrightness = 1;
+  }
 
-  //   RTC_SLOW_MEM[Mem_Delay] =
-  //       dimmer._on || dimmer._currentBrightness != targetBrightness
-  //           ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
-  //           : OFF_TICKS;
-  // }
+  auto targetBrightness = dimmer._on
+                              ? max(dimmer._minBrightness, dimmer._brightness)
+                              : dimmer._minBrightness;
+  if (dimmer._currentBrightness != targetBrightness) {
+    if (dimmer._currentBrightness < targetBrightness)
+      dimmer._currentBrightness++;
+    else
+      dimmer._currentBrightness--;
+
+    RTC_SLOW_MEM[Mem_Delay] =
+        dimmer._on || dimmer._minBrightnessUntil ||
+                dimmer._currentBrightness != targetBrightness
+            ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
+            : OFF_TICKS;
+  }
 }
 
 void Dimmer::toggle() { setOn(!_on); }
@@ -201,9 +208,14 @@ void Dimmer::changeBrightness(int8_t delta) {
 }
 
 void Dimmer::setBrightness(uint8_t brightness) {
-  auto newBrightness = max(_minBrightness, min(_maxBrightness, brightness));
-  if (_brightness != newBrightness) {
-    _brightness = newBrightness;
+  if (brightness < 1) {
+    brightness = 1;
+  }
+  if (brightness > 100) {
+    brightness = 100;
+  }
+  if (_brightness != brightness) {
+    _brightness = brightness;
     raiseStateChanged();
   }
 }
@@ -220,24 +232,6 @@ void Dimmer::setBrightnessCurve(const uint16_t *curve) {
   memcpy(_curve, curve, 100 * sizeof(uint16_t));
 }
 
-void Dimmer::setMinMax(uint8_t min, uint8_t max) {
-  if (min < 1)
-    min = 1;
-  if (max > 100)
-    max = 100;
-
-  _minBrightness = min;
-  _maxBrightness = max;
-
-  if (_brightness < _minBrightness) {
-    _brightness = _minBrightness;
-    raiseStateChanged();
-  } else if (_brightness > _maxBrightness) {
-    _brightness = _maxBrightness;
-    raiseStateChanged();
-  }
-}
-
 void Dimmer::onStateChanged(DimmerStateChangedHandler handler) {
   _handler = handler;
 }
@@ -245,5 +239,21 @@ void Dimmer::onStateChanged(DimmerStateChangedHandler handler) {
 void Dimmer::raiseStateChanged() {
   if (_handler) {
     _handler(_on, _brightness);
+  }
+}
+
+void Dimmer::setMinBrightnessFor(uint8_t brightness, uint16_t timeoutSec) {
+  if (brightness < 1) {
+    brightness = 1;
+  }
+  if (brightness > 100) {
+    brightness = 100;
+  }
+  if (timeoutSec) {
+    _minBrightness = brightness;
+    _minBrightnessUntil = millis() + timeoutSec * 1000;
+  } else {
+    _minBrightness = 1;
+    _minBrightnessUntil = 0;
   }
 }

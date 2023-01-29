@@ -79,7 +79,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
 
           if (_stateSetTopic == topic || _stateTopic == topic) {
-            unsubsribeFromState();
+            unsubsribeFromState(_stateTopic == topic);
 
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) ==
@@ -128,7 +128,7 @@ void SwitchCommon::handle(SwitchCommon *instance) {
 
     if (me._connectedAt && now > me._connectedAt + 5000) {
       me._connectedAt = 0;
-      me.unsubsribeFromState();
+      me.unsubsribeFromState(true);
     }
 
     if (++me._sendStateSkips == 300) {
@@ -153,7 +153,7 @@ void SwitchCommon::publishStateInternal(bool resetSetTopic) {
   }
 
   if (resetSetTopic) {
-    unsubsribeFromState();
+    unsubsribeFromState(false);
     _mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
   }
 
@@ -208,10 +208,13 @@ void SwitchCommon::setUpdateFromStateOnBoot(bool updateFromStateOnBoot) {
   _updateFromStateOnBoot = updateFromStateOnBoot;
 }
 
-void SwitchCommon::unsubsribeFromState() {
+void SwitchCommon::unsubsribeFromState(bool publishState) {
   if (_updateFromStateOnBoot) {
     _updateFromStateOnBoot = false;
     _mqtt.unsubscribe(_stateTopic.c_str());
     _mqtt.subscribe(_stateSetTopic.c_str(), 0);
+    if (publishState) {
+      publishStateInternal(false);
+    }
   }
 }
