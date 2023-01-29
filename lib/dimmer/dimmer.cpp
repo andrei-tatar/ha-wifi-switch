@@ -189,10 +189,12 @@ void Dimmer::handle(Dimmer *instance) {
       dimmer._currentBrightness--;
 
     RTC_SLOW_MEM[Mem_Delay] =
-        dimmer._on || dimmer._minBrightnessUntil ||
-                dimmer._currentBrightness != targetBrightness
-            ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
-            : OFF_TICKS;
+        dimmer._on || dimmer._minBrightnessUntil ? 1 : OFF_TICKS;
+    // RTC_SLOW_MEM[Mem_Delay] =
+    //     dimmer._on || dimmer._minBrightnessUntil ||
+    //             dimmer._currentBrightness != targetBrightness
+    //         ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
+    //         : OFF_TICKS;
   }
 }
 
@@ -223,7 +225,6 @@ void Dimmer::setBrightness(uint8_t brightness) {
 void Dimmer::setOn(bool on) {
   if (_on != on) {
     _on = on;
-    RTC_SLOW_MEM[Mem_Delay] = _on ? 1 : OFF_TICKS;
     raiseStateChanged();
   }
 }
