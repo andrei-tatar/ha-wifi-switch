@@ -13,6 +13,7 @@ class Dimmer {
   uint8_t _currentBrightness = 0;
   uint8_t _minBrightness = 1;
   bool _on = false;
+  bool _currentOn = 0xFF;
   Ticker _ticker;
   static void handle(Dimmer *instance);
   uint16_t _curve[100];
