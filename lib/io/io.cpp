@@ -1,7 +1,6 @@
 #include "io.h"
 
 #define IO_PRESS_REPEAT MSEC(25)
-#define IO_IGNORE_AFTER_TOUCH_UP MSEC(500)
 
 Io::Io() : _qt(Wire) {
   for (uint8_t i = 0; i < IO_CNT; i++)
@@ -19,15 +18,6 @@ bool Io::useLedPins(int8_t led1, int8_t led2, int8_t led3, int8_t redLed,
   _ledRed = redLed;
   _invertLedRed = invertRedLed;
 
-  return pinsChanged;
-}
-
-bool Io::useTouchPins(int8_t touch1, int8_t touch2, int8_t touch3) {
-  bool pinsChanged = _use != UseTouch;
-  pinsChanged |= _touch[0].usePin(touch1);
-  pinsChanged |= _touch[1].usePin(touch2);
-  pinsChanged |= _touch[2].usePin(touch3);
-  _use = UseTouch;
   return pinsChanged;
 }
 
@@ -50,10 +40,12 @@ bool Io::useInputPins(int8_t i1, int8_t i2, int8_t i3) {
   return pinsChanged;
 }
 
-void Io::begin() {
+void Io::begin(uint32_t ignorePeriodAfterTouchUp, bool oneKeyAtATime) {
   if (_initialized) {
     return;
   }
+
+  _ignorePeriodAfterTouchUp = ignorePeriodAfterTouchUp;
 
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
@@ -69,11 +61,7 @@ void Io::begin() {
 
   switch (_use) {
   case UseQt:
-    _qt.begin();
-    break;
-  case UseTouch:
-    for (uint8_t i = 0; i < IO_CNT; i++)
-      _touch[i].begin();
+    _qt.begin(oneKeyAtATime);
     break;
   case UseIo:
     for (uint8_t i = 0; i < IO_CNT; i++)
@@ -90,10 +78,10 @@ void Io::begin() {
 
 void Io::handle(Io *instance) {
   Io &io = *instance;
-  int8_t pressed = -1;
+  uint8_t pressed = 0;
   auto now = millis();
 
-  if (now <= io._ignoreEventsStart + IO_IGNORE_AFTER_TOUCH_UP) {
+  if (now <= io._ignoreEventsStart) {
     return;
   }
 
@@ -106,29 +94,10 @@ void Io::handle(Io *instance) {
       io._stableUpdated = false;
       io._debounce = MSEC(70);
     }
-  } else if (io._use == UseTouch) {
-    for (uint8_t i = 0; i < IO_CNT; i++) {
-      io._touch[i].handle();
-      if (pressed == -1 && io._touch[i].isPressed()) {
-        pressed = i;
-      }
-    }
-
-    if (pressed != io._stablePressed) {
-      if (io._stablePressed == -1 || pressed == -1) {
-        io._debounce = MSEC(50);
-      } else {
-        io._debounce = MSEC(100);
-      }
-
-      io._stablePressed = pressed;
-      io._lastStableChange = now;
-      io._stableUpdated = false;
-    }
   } else if (io._use == UseIo) {
     for (uint8_t i = 0; i < IO_CNT; i++) {
       if (io._inputs[i] != -1 && digitalRead(io._inputs[i]) == 0) {
-        pressed = i;
+        pressed |= (1 << i);
         break;
       }
     }
@@ -145,22 +114,32 @@ void Io::handle(Io *instance) {
     io._stableUpdated = true;
 
     if (io._stablePressed != io._pressed) {
-      if (io._pressed != -1) {
-        if (io._touchUp) {
-          io._touchUp();
-        }
-        if (io._pressed != -1) {
-          io._stablePressed = -1;
-          io._ignoreEventsStart = now;
+
+      if (io._touchUp) {
+        for (uint8_t i = 0; i < IO_CNT; i++) {
+          uint8_t mask = 1 << i;
+          if ((io._pressed & mask) && !(io._stablePressed & mask)) {
+            // was pressed, but not anymore
+            io._touchUp(i);
+          }
         }
       }
 
+      if (io._stablePressed == 0) {
+        io._ignoreEventsStart = now + io._ignorePeriodAfterTouchUp;
+      }
+
+      auto lastPressed = io._pressed;
       io._pressed = io._stablePressed;
       io.updateLeds();
 
-      if (io._pressed != -1) {
-        if (io._touchDown) {
-          io._touchDown(io._pressed);
+      if (io._touchDown) {
+        for (uint8_t i = 0; i < IO_CNT; i++) {
+          uint8_t mask = 1 << i;
+          if (!(lastPressed & mask) && (io._pressed & mask)) {
+            // is pressed now, but was not before
+            io._touchDown(i);
+          }
         }
       }
 
@@ -168,10 +147,13 @@ void Io::handle(Io *instance) {
     }
   }
 
-  if (io._pressed != -1 && now - io._lastSentEvent >= IO_PRESS_REPEAT) {
+  if (io._touchPress && io._pressed &&
+      now - io._lastSentEvent >= IO_PRESS_REPEAT) {
     io._lastSentEvent = now;
-    if (io._touchPress) {
-      io._touchPress(io._pressed);
+    for (uint8_t i = 0; i < IO_CNT; i++) {
+      if (io._pressed & (1 << i)) {
+        io._touchPress(i);
+      }
     }
   }
 }
@@ -186,7 +168,7 @@ Io &Io::onTouchPress(TouchKeyHandler handler) {
   return *this;
 }
 
-Io &Io::onTouchUp(TouchVoidHandler handler) {
+Io &Io::onTouchUp(TouchKeyHandler handler) {
   _touchUp = handler;
   return *this;
 }
@@ -208,7 +190,8 @@ void Io::updateLeds() {
   }
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
-      ledcWrite(i, 255 - (_pressed == i ? _levelBlueTouched : _levelBlue[i]));
+      ledcWrite(
+          i, 255 - (_pressed & (1 << i) ? _levelBlueTouched : _levelBlue[i]));
     }
   }
 }
@@ -223,15 +206,6 @@ void Io::appendStatus(JsonVariant doc) const {
       auto parent = ioStatus.createNestedObject();
       parent["value"] = value;
       parent["threshold"] = _qt.reference(i);
-    }
-  } else if (_use == UseTouch) {
-    for (uint8_t i = 0; i < IO_CNT; i++) {
-      auto value = _touch[i].getValue();
-      if (value == 0)
-        continue;
-      auto parent = ioStatus.createNestedObject();
-      parent["value"] = value;
-      parent["threshold"] = _touch[i].getThreshold();
     }
   } else if (_use == UseIo) {
     for (uint8_t i = 0; i < IO_CNT; i++) {

@@ -33,19 +33,17 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
     int8_t qtCh1 = pinsQtConfig["ch"][0] | -1;
     int8_t qtCh2 = pinsQtConfig["ch"][1] | -1;
     int8_t qtCh3 = pinsQtConfig["ch"][2] | -1;
+
     pinsChanged |= _io.useQtTouch(qtSda, qtScl, qtCh1, qtCh2, qtCh3);
   } else if (!inputPinsConfig.isNull()) {
     int8_t input1 = inputPinsConfig[0] | -1;
     int8_t input2 = inputPinsConfig[1] | -1;
     int8_t input3 = inputPinsConfig[2] | -1;
     pinsChanged |= _io.useInputPins(input1, input2, input3);
-  } else if (!pinsTouchConfig.isNull()) {
-    int8_t touch1 = pinsTouchConfig[0] | -1;
-    int8_t touch2 = pinsTouchConfig[1] | -1;
-    int8_t touch3 = pinsTouchConfig[2] | -1;
-    pinsChanged |= _io.useTouchPins(touch1, touch2, touch3);
   }
-  _io.begin();
+
+  bool isSwitch = config["type"] == "switch";
+  _io.begin(isSwitch ? 0 : MSEC(500), isSwitch ? false : true);
 
   return pinsChanged;
 }

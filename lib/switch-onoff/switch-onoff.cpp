@@ -65,16 +65,29 @@ void SwitchOnOff::updateState(JsonVariantConst state) {
     auto on = state["on"];
     bool hasChanges = false;
 
-    uint8_t onIndex = 0;
-    for (uint8_t i = 0; i < IO_CNT; i++) {
-      if (_pins[i] != -1) {
-        auto stateForPin = on.getElement(onIndex++);
-        if (stateForPin.is<bool>()) {
-          bool newState = stateForPin;
+    if (on.is<bool>()) {
+      for (uint8_t i = 0; i < IO_CNT; i++) {
+        bool newState = on.as<bool>();
+        if (_pins[i] != -1) {
           if (newState != _state[i]) {
             _state[i] = newState;
             digitalWrite(_pins[i], _state[i] ? HIGH : LOW);
             hasChanges = true;
+          }
+        }
+      }
+    } else {
+      uint8_t onIndex = 0;
+      for (uint8_t i = 0; i < IO_CNT; i++) {
+        if (_pins[i] != -1) {
+          auto stateForPin = on.getElement(onIndex++);
+          if (stateForPin.is<bool>()) {
+            bool newState = stateForPin;
+            if (newState != _state[i]) {
+              _state[i] = newState;
+              digitalWrite(_pins[i], _state[i] ? HIGH : LOW);
+              hasChanges = true;
+            }
           }
         }
       }

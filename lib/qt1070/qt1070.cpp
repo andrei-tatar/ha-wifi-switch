@@ -24,7 +24,7 @@ bool Qt1070::usePins(int8_t sda, int8_t scl) {
   return pinsChanged;
 }
 
-void Qt1070::begin() {
+void Qt1070::begin(bool oneKeyAtATime) {
   _wire.begin(_sda, _scl);
 
   writeRegister(REG_RESET, 0xFF); // reset
@@ -52,8 +52,9 @@ void Qt1070::begin() {
 
     if (chEnabled) {
       // enable channel
-      writeRegister(REG_AVE + i, (32 << 2) | 1); // samples + group
-      writeRegister(REG_NTHR + i, 8);            // threshold
+      writeRegister(REG_AVE + i,
+                    (32 << 2) | (oneKeyAtATime ? 1 : 0)); // samples + group
+      writeRegister(REG_NTHR + i, 8);                     // threshold
     } else {
       // disable channel
       writeRegister(REG_AVE + i, 0);
@@ -102,23 +103,24 @@ void Qt1070::calibrate() const {
   writeRegister(REG_CALIBRATE, 0xFF);
 }
 
-int8_t Qt1070::pressed() const {
+uint8_t Qt1070::pressed() const {
   if (!_initialized) {
-    return -1;
+    return 0;
   }
 
   uint8_t status = readRegister(REG_KEY_STATUS);
   if (status == 0) {
-    return -1;
+    return 0;
   }
 
+  uint8_t pressed = 0;
   for (uint8_t i = 0; i < CH_COUNT; i++) {
     if (_channels[i] != -1 && (status & (1 << _channels[i]))) {
-      return i;
+      pressed |= 1 << i;
     }
   }
 
-  return -1;
+  return pressed;
 }
 
 uint16_t Qt1070::signal(uint8_t index) const {

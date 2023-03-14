@@ -22,9 +22,9 @@ public:
 
   bool usePins(int8_t sda, int8_t scl);
   void useChannels(int8_t ch1 = -1, int8_t ch2 = -1, int8_t ch3 = -1);
-  void begin();
+  void begin(bool oneKeyAtATime = true);
   void calibrate() const;
-  int8_t pressed() const;
+  uint8_t pressed() const;
   uint16_t signal(uint8_t index) const;
   uint16_t reference(uint8_t index) const;
 };
