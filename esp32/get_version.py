@@ -20,7 +20,7 @@ with open('../dimmer-coprocessor/.pio/build/tiny_dimmer/firmware.hex', 'rb') as 
       header.write('    '+line+',\n')
     header.write('};\n')
     header.write('\n#endif\n')
-    print(firmwareData)
+    print(f'Compressed from {len(data)} to {len(compressed)}')
 
 # Get the version number from the build environment.
 firmware_version = os.environ.get('VERSION', "")
