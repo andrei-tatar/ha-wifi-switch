@@ -76,13 +76,14 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             return;
           }
 
-          if (_stateSetTopic == topic || _stateTopic == topic) {
-            unsubsribeFromState(_stateTopic == topic);
+          auto isRecall = _stateTopic == topic;
+          if (_stateSetTopic == topic || isRecall) {
+            unsubsribeFromState(isRecall);
 
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) ==
                 DeserializationError::Code::Ok) {
-              _stateChanged(stateUpdate);
+              _stateChanged(stateUpdate, isRecall);
             }
           }
         })
@@ -200,10 +201,6 @@ void SwitchCommon::onGetState(GetJsonStateHandler getState) {
 
 void SwitchCommon::onStateChanged(JsonStateChangedHandler handler) {
   _stateChanged = handler;
-}
-
-void SwitchCommon::setUpdateFromStateOnBoot(bool updateFromStateOnBoot) {
-  _updateFromStateOnBoot = updateFromStateOnBoot;
 }
 
 void SwitchCommon::unsubsribeFromState(bool publishState) {

@@ -60,7 +60,7 @@ void SwitchOnOff::appendState(JsonVariant doc) const {
   }
 }
 
-void SwitchOnOff::updateState(JsonVariantConst state) {
+void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
   if (_initialized) {
     auto on = state["on"];
     bool hasChanges = false;

@@ -91,7 +91,7 @@ void SwitchDimmer::appendState(JsonVariant doc) const {
   }
 }
 
-void SwitchDimmer::updateState(JsonVariantConst state) {
+void SwitchDimmer::updateState(JsonVariantConst state, bool isFromStoredState) {
   if (!_initialized) {
     return;
   }

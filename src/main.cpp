@@ -27,16 +27,9 @@ void applyConfiguration(bool init) {
   auto needsReboot = switchCommon.configure(*config);
   String configType = (*config)["type"] | "undefined";
 
-  switchCommon.setUpdateFromStateOnBoot(false);
   if (configType == "dimmer") {
-    if (init) {
-      switchCommon.setUpdateFromStateOnBoot(true);
-    }
     needsReboot |= switchDimmer.configure(config->getMember("dimmer"));
   } else if (configType == "switch") {
-    if (init) {
-      switchCommon.setUpdateFromStateOnBoot(true);
-    }
     needsReboot |= switchOnOff.configure(config->getMember("switch"));
   } else if (configType == "blinds") {
     needsReboot |= switchBlinds.configure(config->getMember("blinds"));
@@ -79,10 +72,10 @@ void setup() {
   switchDimmer.onStateChanged([] { switchCommon.publishState(); });
   switchOnOff.onStateChanged([] { switchCommon.publishState(); });
   switchBlinds.onStateChanged([] { switchCommon.publishState(); });
-  switchCommon.onStateChanged([](JsonVariantConst state) {
-    switchDimmer.updateState(state);
-    switchOnOff.updateState(state);
-    switchBlinds.updateState(state);
+  switchCommon.onStateChanged([](JsonVariantConst state, bool isFromStoredState) {
+    switchDimmer.updateState(state, isFromStoredState);
+    switchOnOff.updateState(state, isFromStoredState);
+    switchBlinds.updateState(state, isFromStoredState);
   });
   web.onReadConfig([] { return configuration.read(); });
   web.onSetConfig([](String config) {

@@ -7,7 +7,8 @@
 #include <Ticker.h>
 
 typedef std::function<void(JsonVariant state)> GetJsonStateHandler;
-typedef std::function<void(JsonVariant state)> JsonStateChangedHandler;
+typedef std::function<void(JsonVariant state, bool isFromStoredState)>
+    JsonStateChangedHandler;
 
 class SwitchCommon {
   Io &_io;
@@ -20,7 +21,7 @@ class SwitchCommon {
   String _stateSetTopic;
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
-  bool _updateFromStateOnBoot;
+  bool _updateFromStateOnBoot = true;
   AsyncMqttClient _mqtt;
   Ticker _timer;
   int _reconnectWifiSkips = 0;
@@ -43,7 +44,6 @@ public:
   void appendStatus(JsonVariant doc) const;
   void publishState();
   void onStateChanged(JsonStateChangedHandler stateChanged);
-  void setUpdateFromStateOnBoot(bool updateFromStateOnBoot);
 };
 
 #endif

@@ -21,7 +21,7 @@ protected:
 
 public:
   void onStateChanged(StateChangedHandler handler);
-  virtual void updateState(JsonVariantConst state) = 0;
+  virtual void updateState(JsonVariantConst state, bool isFromStoredState) = 0;
 };
 
 #endif

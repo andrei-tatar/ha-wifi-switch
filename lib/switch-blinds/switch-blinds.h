@@ -39,7 +39,7 @@ public:
 
   bool configure(const JsonVariantConst config);
   void appendState(JsonVariant doc) const;
-  void updateState(JsonVariantConst state) override;
+  void updateState(JsonVariantConst state, bool isFromStoredState) override;
 
   void update();
 };

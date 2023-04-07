@@ -208,8 +208,19 @@ void SwitchBlinds::appendState(JsonVariant doc) const {
   }
 }
 
-void SwitchBlinds::updateState(JsonVariantConst state) {
-  if (_initialized) {
+void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
+  if (!_initialized)
+    return;
+
+  if (isFromStoredState) {
+    if (_motorState != Motor_Off)
+      return;
+
+    // restore state from JSON (most probably position hasn't changed)
+    _pendingTarget = -1;
+    _calibrating = false;
+    _position = _targetPosition = state["target"];
+  } else {
     auto stateOpenPercent = state["openPercent"];
     if (stateOpenPercent.is<int>()) {
       int openPercent = stateOpenPercent;
