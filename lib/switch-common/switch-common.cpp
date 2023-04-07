@@ -78,12 +78,20 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
 
           auto isRecall = _stateTopic == topic;
           if (_stateSetTopic == topic || isRecall) {
-            unsubsribeFromState(isRecall);
+            if (isRecall) {
+              unsubsribeFromState();
+            }
 
             DynamicJsonDocument stateUpdate(500);
             if (deserializeJson(stateUpdate, payload, len) ==
                 DeserializationError::Code::Ok) {
               _stateChanged(stateUpdate, isRecall);
+            }
+
+            if (isRecall) {
+              publishState();
+            } else {
+              _mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
             }
           }
         })
@@ -94,7 +102,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             _mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
             _mqtt.subscribe(_stateSetTopic.c_str(), 0);
-            publishStateInternal(false);
+            publishState();
           }
           _mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
                         BUILD_VERSION);
@@ -127,12 +135,13 @@ void SwitchCommon::handle(SwitchCommon *instance) {
 
     if (me._connectedAt && now > me._connectedAt + 5000) {
       me._connectedAt = 0;
-      me.unsubsribeFromState(true);
+      me.unsubsribeFromState();
+      me.publishState();
     }
 
     if (++me._sendStateSkips == 300) {
       me._sendStateSkips = 0;
-      me.publishStateInternal(false);
+      me.publishState();
     }
   } else {
     me._sendStateSkips = 0;
@@ -146,14 +155,9 @@ void SwitchCommon::handle(SwitchCommon *instance) {
   }
 }
 
-void SwitchCommon::publishStateInternal(bool resetSetTopic) {
+void SwitchCommon::publishState() {
   if (!_getState) {
     return;
-  }
-
-  if (resetSetTopic) {
-    unsubsribeFromState(false);
-    _mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
   }
 
   DynamicJsonDocument stateJson(500);
@@ -162,8 +166,6 @@ void SwitchCommon::publishStateInternal(bool resetSetTopic) {
   serializeJson(stateJson, state);
   _mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());
 }
-
-void SwitchCommon::publishState() { publishStateInternal(true); }
 
 bool SwitchCommon::configure(const JsonVariantConst config) {
   bool otaEnabled = config["ota"]["enabled"] | true;
@@ -203,13 +205,10 @@ void SwitchCommon::onStateChanged(JsonStateChangedHandler handler) {
   _stateChanged = handler;
 }
 
-void SwitchCommon::unsubsribeFromState(bool publishState) {
+void SwitchCommon::unsubsribeFromState() {
   if (_updateFromStateOnBoot) {
     _updateFromStateOnBoot = false;
     _mqtt.unsubscribe(_stateTopic.c_str());
     _mqtt.subscribe(_stateSetTopic.c_str(), 0);
-    if (publishState) {
-      publishStateInternal(false);
-    }
   }
 }

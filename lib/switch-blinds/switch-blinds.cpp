@@ -219,7 +219,8 @@ void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
     // restore state from JSON (most probably position hasn't changed)
     _pendingTarget = -1;
     _calibrating = false;
-    _position = _targetPosition = state["target"];
+    _position = state["current"];
+    _targetPosition = state["target"];
   } else {
     auto stateOpenPercent = state["openPercent"];
     if (stateOpenPercent.is<int>()) {

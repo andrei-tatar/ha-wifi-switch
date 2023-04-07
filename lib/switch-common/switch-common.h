@@ -31,8 +31,7 @@ class SwitchCommon {
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
-  void publishStateInternal(bool resetSetTopic);
-  void unsubsribeFromState(bool publishState);
+  void unsubsribeFromState();
 
   static void handle(SwitchCommon *instance);
 
