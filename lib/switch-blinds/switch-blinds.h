@@ -18,10 +18,8 @@ class SwitchBlinds : public SwitchBase {
   int8_t _pinOpen, _pinClose;
   MotorState _motorState = Motor_Off;
   uint8_t _levelTouch, _levelRed, _levelChanging;
-  int _position = -1;
-  bool _calibrating;
-  int _pendingTarget = -1;
-  int _targetPosition;
+  int _position = 0;
+  int _targetPosition = 0;
   int _maxPosition;
   int _openCloseDelta;
   uint32_t _motorChange;

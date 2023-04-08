@@ -32,10 +32,8 @@ void SwitchBase::suspendStateChanges() { _suspendStateChanges++; }
 void SwitchBase::resumeStateChanges() {
   if (_suspendStateChanges) {
     _suspendStateChanges--;
-    if (_suspendStateChanges == 0) {
-      if (_pendingChanges) {
-        raiseStateChanged();
-      }
+    if (_suspendStateChanges == 0 && _pendingChanges) {
+      raiseStateChanged();
     }
   }
 }

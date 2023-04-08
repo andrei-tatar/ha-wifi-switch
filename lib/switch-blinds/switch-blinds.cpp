@@ -1,7 +1,6 @@
 #include "switch-blinds.h"
 
 #define POLL_INTERVAL MSEC(50)
-#define POSITION_UNKNOWN -1
 #define SAFETY_DELTA SECS(1)
 
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
@@ -32,14 +31,7 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
 
     _io.onTouchDown([this](int8_t key) {
       if (_motorState != Motor_Off) {
-        bool wasCalibrating = _calibrating;
-        if (wasCalibrating) {
-          _pendingTarget = -1;
-        }
         changeMotor(Motor_Off);
-        if (wasCalibrating) {
-          _position = POSITION_UNKNOWN;
-        }
       } else if (key == 1) {
         setTargetPosition(0);
       } else if (key == 2) {
@@ -82,7 +74,6 @@ void SwitchBlinds::changeMotor(MotorState newState) {
 
   if (_motorState == Motor_Off) {
     _targetPosition = _position;
-    _calibrating = false;
   } else if (_motorState == Motor_Opening) {
     digitalWrite(_pinOpen, HIGH);
     _motorChange = millis();
@@ -92,8 +83,6 @@ void SwitchBlinds::changeMotor(MotorState newState) {
   }
 
   updateLevels();
-
-  raiseStateChanged();
 }
 
 int SwitchBlinds::getCurrentPosition(bool limit) const {
@@ -126,14 +115,6 @@ int SwitchBlinds::getCurrentPosition(bool limit) const {
 
 void SwitchBlinds::update() {
   if (_motorState == Motor_Off) {
-
-    if (_pendingTarget != -1) {
-      auto pending = _pendingTarget;
-      _pendingTarget = -1;
-      _calibrating = false;
-      setTargetPosition(pending);
-    }
-
     return;
   }
 
@@ -148,6 +129,8 @@ void SwitchBlinds::update() {
       changeMotor(Motor_Off);
     }
   }
+
+  raiseStateChanged();
 }
 
 void SwitchBlinds::updateLevels() {
@@ -164,21 +147,7 @@ void SwitchBlinds::setTargetPosition(int target) {
     target = _maxPosition + SAFETY_DELTA;
   }
 
-  if (_pendingTarget != -1) {
-    _pendingTarget = target;
-    return;
-  }
-
-  if (_position == POSITION_UNKNOWN) {
-    auto half = _maxPosition / 2;
-    _position = target < half ? _maxPosition : 0;
-    _pendingTarget = target;
-    target = target > half ? _maxPosition + SAFETY_DELTA : -SAFETY_DELTA;
-    if (target == _pendingTarget) {
-      _pendingTarget = -1;
-    }
-    _calibrating = true;
-  } else if (_targetPosition == target) {
+  if (_targetPosition == target) {
     return;
   }
 
@@ -204,7 +173,6 @@ void SwitchBlinds::appendState(JsonVariant doc) const {
     doc["target"] = _targetPosition;
     doc["current"] = getCurrentPosition(true);
     doc["motor"] = getMotorStatus();
-    doc["pendingTarget"] = _pendingTarget;
   }
 }
 
@@ -217,10 +185,11 @@ void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
       return;
 
     // restore state from JSON (most probably position hasn't changed)
-    _pendingTarget = -1;
-    _calibrating = false;
     _position = state["current"];
-    _targetPosition = state["target"];
+    int targetPosition = state["target"];
+    if (targetPosition != _position) {
+      setTargetPosition(targetPosition);
+    }
   } else {
     auto stateOpenPercent = state["openPercent"];
     if (stateOpenPercent.is<int>()) {

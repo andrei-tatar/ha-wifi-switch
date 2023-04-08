@@ -86,12 +86,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             if (deserializeJson(stateUpdate, payload, len) ==
                 DeserializationError::Code::Ok) {
               _stateChanged(stateUpdate, isRecall);
-            }
-
-            if (isRecall) {
-              publishState();
-            } else {
-              _mqtt.publish(_stateSetTopic.c_str(), 0, true); // reset
+              _lastReceivedMessage = millis();
             }
           }
         })
@@ -102,7 +97,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             _mqtt.subscribe(_stateTopic.c_str(), 0);
           } else {
             _mqtt.subscribe(_stateSetTopic.c_str(), 0);
-            publishState();
+            publishStateInternal();
           }
           _mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
                         BUILD_VERSION);
@@ -136,12 +131,19 @@ void SwitchCommon::handle(SwitchCommon *instance) {
     if (me._connectedAt && now > me._connectedAt + 5000) {
       me._connectedAt = 0;
       me.unsubsribeFromState();
-      me.publishState();
+      me.publishStateInternal();
     }
 
     if (++me._sendStateSkips == 300) {
       me._sendStateSkips = 0;
-      me.publishState();
+      me.publishStateInternal();
+    }
+
+    if (me._lastReceivedMessage &&
+        me._lastReceivedMessage > me._lastStateUpdateSent &&
+        now > me._lastStateUpdateSent + 1000) {
+      me._lastReceivedMessage = 0;
+      me.resetPendingCommand();
     }
   } else {
     me._sendStateSkips = 0;
@@ -156,6 +158,17 @@ void SwitchCommon::handle(SwitchCommon *instance) {
 }
 
 void SwitchCommon::publishState() {
+  publishStateInternal();
+  resetPendingCommand();
+}
+
+void SwitchCommon::resetPendingCommand() {
+  _mqtt.publish(_stateSetTopic.c_str(), 0, true);
+}
+
+void SwitchCommon::publishStateInternal() {
+  _lastStateUpdateSent = millis();
+
   if (!_getState) {
     return;
   }

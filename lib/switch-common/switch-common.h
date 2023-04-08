@@ -28,12 +28,16 @@ class SwitchCommon {
   int _sendStateSkips = 0;
   bool _firstConnection = true;
   uint32_t _connectedAt = 0;
+  uint32_t _lastReceivedMessage = 0;
+  uint32_t _lastStateUpdateSent = 0;
 
   bool configureIo(const JsonVariantConst config);
   void configureMqtt(const JsonVariantConst config, String host);
   void unsubsribeFromState();
 
   static void handle(SwitchCommon *instance);
+  void publishStateInternal();
+  void resetPendingCommand();
 
 public:
   SwitchCommon(Io &io);
