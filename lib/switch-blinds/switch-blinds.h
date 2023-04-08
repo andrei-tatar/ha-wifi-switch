@@ -29,7 +29,7 @@ class SwitchBlinds : public SwitchBase {
   void updateLevels();
   void changeMotor(MotorState newState);
   int getCurrentPosition(bool limit = false) const;
-  void setTargetPosition(int target);
+  void setTargetPosition(int target, bool addSafetyMargin);
   String getMotorStatus() const;
 
 public:

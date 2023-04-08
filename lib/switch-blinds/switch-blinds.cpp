@@ -33,9 +33,9 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
       if (_motorState != Motor_Off) {
         changeMotor(Motor_Off);
       } else if (key == 1) {
-        setTargetPosition(0);
+        setTargetPosition(0, true);
       } else if (key == 2) {
-        setTargetPosition(_maxPosition);
+        setTargetPosition(_maxPosition, true);
       }
     });
     _initialized = true;
@@ -139,12 +139,12 @@ void SwitchBlinds::updateLevels() {
                    _levelTouch, _levelRed);
 }
 
-void SwitchBlinds::setTargetPosition(int target) {
+void SwitchBlinds::setTargetPosition(int target, bool addSafetyMargin) {
   if (target <= 0) {
-    target = -SAFETY_DELTA;
+    target = addSafetyMargin ? -SAFETY_DELTA : 0;
   }
   if (target >= _maxPosition) {
-    target = _maxPosition + SAFETY_DELTA;
+    target = _maxPosition + (addSafetyMargin ? SAFETY_DELTA : 0);
   }
 
   if (_targetPosition == target) {
@@ -184,17 +184,15 @@ void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
     if (_motorState != Motor_Off)
       return;
 
-    // restore state from JSON (most probably position hasn't changed)
+    // restore state from JSON (most probably motor position hasn't changed)
     _position = state["current"];
     int targetPosition = state["target"];
-    if (targetPosition != _position) {
-      setTargetPosition(targetPosition);
-    }
+    setTargetPosition(targetPosition, false);
   } else {
     auto stateOpenPercent = state["openPercent"];
     if (stateOpenPercent.is<int>()) {
       int openPercent = stateOpenPercent;
-      setTargetPosition((100 - openPercent) * _maxPosition / 100);
+      setTargetPosition((100 - openPercent) * _maxPosition / 100, true);
     }
   }
 }
