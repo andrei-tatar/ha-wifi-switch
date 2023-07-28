@@ -12,8 +12,12 @@ class SwitchOnOff : public SwitchBase {
   bool _initialized = false;
   uint8_t _onBlueLevel, _onRedLevel, _offBlueLevel, _offRedLevel,
       _blueTouchLevel;
-
+  Ticker _ticker;
   void updateLevels();
+  void updatePin(uint8_t index, bool newState);
+
+  static void resetPins(SwitchOnOff *instance);
+  uint8_t _resetPinsMask;
 
 public:
   SwitchOnOff(Io &io);

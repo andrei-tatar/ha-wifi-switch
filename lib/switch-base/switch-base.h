@@ -18,6 +18,7 @@ protected:
   void raiseStateChanged();
   void suspendStateChanges();
   void resumeStateChanges();
+  inline bool hasPendingChanges() { return _pendingChanges; }
 
 public:
   void onStateChanged(StateChangedHandler handler);

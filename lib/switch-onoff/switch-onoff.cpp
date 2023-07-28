@@ -60,42 +60,81 @@ void SwitchOnOff::appendState(JsonVariant doc) const {
   }
 }
 
-void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
-  if (_initialized) {
-    auto on = state["on"];
-    bool hasChanges = false;
+void SwitchOnOff::resetPins(SwitchOnOff *instance) {
+  SwitchOnOff &me = *instance;
 
-    if (on.is<bool>()) {
-      for (uint8_t i = 0; i < IO_CNT; i++) {
-        bool newState = on.as<bool>();
-        if (_pins[i] != -1) {
-          if (newState != _state[i]) {
-            _state[i] = newState;
-            digitalWrite(_pins[i], _state[i] ? HIGH : LOW);
-            hasChanges = true;
-          }
-        }
-      }
-    } else {
-      uint8_t onIndex = 0;
-      for (uint8_t i = 0; i < IO_CNT; i++) {
-        if (_pins[i] != -1) {
-          auto stateForPin = on.getElement(onIndex++);
-          if (stateForPin.is<bool>()) {
-            bool newState = stateForPin;
-            if (newState != _state[i]) {
-              _state[i] = newState;
-              digitalWrite(_pins[i], _state[i] ? HIGH : LOW);
-              hasChanges = true;
-            }
-          }
-        }
-      }
-    }
-
-    if (hasChanges) {
-      updateLevels();
-      raiseStateChanged();
+  me.suspendStateChanges();
+  for (uint8_t i = 0; i < IO_CNT; i++) {
+    if (me._resetPinsMask & (1 << i)) {
+      me.updatePin(i, false);
     }
   }
+
+  if (me.hasPendingChanges()) {
+    me.updateLevels();
+  }
+
+  me.resumeStateChanges();
+}
+
+void SwitchOnOff::updatePin(uint8_t index, bool newState) {
+  if (_pins[index] != -1 && newState != _state[index]) {
+    _state[index] = newState;
+    digitalWrite(_pins[index], _state[index] ? HIGH : LOW);
+    raiseStateChanged();
+  }
+}
+
+void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
+  if (!_initialized) {
+    return;
+  }
+
+  auto on = state["on"];
+  auto forSeconds = state["for"];
+
+  bool resetAfterTime = false;
+  uint8_t resetPinsMask = 0;
+
+  suspendStateChanges();
+
+  if (on.is<bool>()) {
+    bool newState = on.as<bool>();
+    resetAfterTime = forSeconds.is<uint16_t>() && newState;
+    for (uint8_t i = 0; i < IO_CNT; i++) {
+      resetPinsMask |= 1 << i;
+      updatePin(i, newState);
+    }
+  } else {
+    uint8_t onIndex = 0;
+    for (uint8_t i = 0; i < IO_CNT; i++) {
+      if (_pins[i] != -1) {
+        auto stateForPin = on.getElement(onIndex++);
+        if (stateForPin.is<bool>()) {
+          bool newState = stateForPin;
+          if (stateForPin) {
+            resetAfterTime |= forSeconds.is<uint16_t>();
+            resetPinsMask |= 1 << i;
+          }
+          updatePin(i, stateForPin);
+        }
+      }
+    }
+  }
+
+  if (resetAfterTime) {
+    auto afterSeconds = forSeconds.as<int>();
+    if (afterSeconds) {
+      _resetPinsMask = resetPinsMask;
+      _ticker.once_ms(afterSeconds * 1000, SwitchOnOff::resetPins, this);
+    } else {
+      _ticker.detach();
+    }
+  }
+
+  if (hasPendingChanges()) {
+    updateLevels();
+  }
+
+  resumeStateChanges();
 }
