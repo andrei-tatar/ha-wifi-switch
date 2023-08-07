@@ -94,20 +94,22 @@ void Dimmer::begin() {
     return;
   }
 
-  rtc_gpio_init((gpio_num_t)_pinTriac);
-  rtc_gpio_set_direction((gpio_num_t)_pinTriac, RTC_GPIO_MODE_OUTPUT_ONLY);
-  rtc_gpio_set_level((gpio_num_t)_pinTriac, 0);
-
-  rtc_gpio_init((gpio_num_t)_pinZero);
-  rtc_gpio_set_direction((gpio_num_t)_pinZero, RTC_GPIO_MODE_INPUT_ONLY);
-  rtc_gpio_pullup_en((gpio_num_t)_pinZero);
-
-  uint32_t _triacIo =
-      RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinTriac);
-  uint32_t _zeroIo =
-      RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
-
   _ticker.attach_ms(25, Dimmer::handle, this);
+
+  pinMode(_pinTriac, OUTPUT);
+
+  // rtc_gpio_init((gpio_num_t)_pinTriac);
+  // rtc_gpio_set_direction((gpio_num_t)_pinTriac, RTC_GPIO_MODE_OUTPUT_ONLY);
+  // rtc_gpio_set_level((gpio_num_t)_pinTriac, 0);
+
+  // rtc_gpio_init((gpio_num_t)_pinZero);
+  // rtc_gpio_set_direction((gpio_num_t)_pinZero, RTC_GPIO_MODE_INPUT_ONLY);
+  // rtc_gpio_pullup_en((gpio_num_t)_pinZero);
+
+  // uint32_t _triacIo =
+  //     RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinTriac);
+  // uint32_t _zeroIo =
+  //     RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
 
   // const ulp_insn_t program[] = {
   //     TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
@@ -147,29 +149,11 @@ void Dimmer::begin() {
 
   //     I_HALT()};
 
-  const ulp_insn_t program[] = {
-      TRIAC_OFF,
-      I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
-
-      M_LABEL(Label_Start),
-
-      I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
-      LOAD_DELAY,
-      M_BGE(Label_SkipDelays, OFF_TICKS), // skip pulsing if off
-      TRIAC_ON,                           // triac on
-      M_BX(Label_Start),
-
-      M_LABEL(Label_SkipDelays),
-      TRIAC_OFF,
-      M_BX(Label_Start),
-
-      I_HALT()};
-
-  RTC_SLOW_MEM[Mem_Delay] = OFF_TICKS;
-  size_t load_addr = Mem_Program;
-  size_t size = sizeof(program) / sizeof(ulp_insn_t);
-  ulp_process_macros_and_load(load_addr, program, &size);
-  ulp_run(load_addr);
+  // RTC_SLOW_MEM[Mem_Delay] = OFF_TICKS;
+  // size_t load_addr = Mem_Program;
+  // size_t size = sizeof(program) / sizeof(ulp_insn_t);
+  // ulp_process_macros_and_load(load_addr, program, &size);
+  // ulp_run(load_addr);
 }
 
 void Dimmer::handle(Dimmer *instance) {
@@ -179,23 +163,24 @@ void Dimmer::handle(Dimmer *instance) {
     dimmer._minBrightness = 1;
   }
 
-  auto targetBrightness = dimmer._on
-                              ? max(dimmer._minBrightness, dimmer._brightness)
-                              : dimmer._minBrightness;
-  if (dimmer._currentBrightness != targetBrightness) {
-    if (dimmer._currentBrightness < targetBrightness)
-      dimmer._currentBrightness++;
-    else
-      dimmer._currentBrightness--;
+  // auto targetBrightness = dimmer._on
+  //                             ? max(dimmer._minBrightness,
+  //                             dimmer._brightness) : dimmer._minBrightness;
+  // if (dimmer._currentBrightness != targetBrightness) {
+  //   if (dimmer._currentBrightness < targetBrightness)
+  //     dimmer._currentBrightness++;
+  //   else
+  //     dimmer._currentBrightness--;
 
-    RTC_SLOW_MEM[Mem_Delay] =
-        dimmer._on || dimmer._minBrightnessUntil ? 1 : OFF_TICKS;
-    // RTC_SLOW_MEM[Mem_Delay] =
-    //     dimmer._on || dimmer._minBrightnessUntil ||
-    //             dimmer._currentBrightness != targetBrightness
-    //         ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
-    //         : OFF_TICKS;
-  }
+  //   RTC_SLOW_MEM[Mem_Delay] =
+  //       dimmer._on || dimmer._minBrightnessUntil ||
+  //               dimmer._currentBrightness != targetBrightness
+  //           ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
+  //           : OFF_TICKS;
+  // }
+
+  digitalWrite(dimmer._pinTriac,
+               dimmer._on || dimmer._minBrightnessUntil ? HIGH : LOW);
 }
 
 void Dimmer::toggle() { setOn(!_on); }
