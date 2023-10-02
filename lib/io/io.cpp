@@ -81,8 +81,11 @@ void Io::handle(Io *instance) {
   uint8_t pressed = 0;
   auto now = millis();
 
-  if (now <= io._ignoreEventsStart) {
-    return;
+  if (io._ignoreEventsStart) {
+    if (now <= io._ignoreEventsStart + io._ignorePeriodAfterTouchUp)
+      return;
+  } else {
+    io._ignoreEventsStart = 0;
   }
 
   if (io._use == UseQt) {
@@ -126,7 +129,7 @@ void Io::handle(Io *instance) {
       }
 
       if (io._stablePressed == 0) {
-        io._ignoreEventsStart = now + io._ignorePeriodAfterTouchUp;
+        io._ignoreEventsStart = now;
       }
 
       auto lastPressed = io._pressed;
