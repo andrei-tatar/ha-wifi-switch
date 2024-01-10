@@ -25,6 +25,11 @@ bool SwitchOnOff::configure(const JsonVariantConst config) {
       }
       updateLevels();
       raiseStateChanged();
+
+      if (_resetAfter) {
+        _resetPinsMask |= 1 << key;
+        _ticker.once_ms(_resetAfter * 1000, SwitchOnOff::resetPins, this);
+      }
     });
   }
 
@@ -35,6 +40,7 @@ bool SwitchOnOff::configure(const JsonVariantConst config) {
   _onRedLevel = onLevels["red"] | 0;
   _offBlueLevel = offLevels["blue"] | 0;
   _offRedLevel = offLevels["red"] | 20;
+  _resetAfter = config["resetAfter"] | 0;
   updateLevels();
 
   _initialized = true;
@@ -69,6 +75,8 @@ void SwitchOnOff::resetPins(SwitchOnOff *instance) {
       me.updatePin(i, false);
     }
   }
+
+  me._resetPinsMask = 0;
 
   if (me.hasPendingChanges()) {
     me.updateLevels();
@@ -122,10 +130,14 @@ void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
     }
   }
 
+  if (_resetAfter > 0) {
+    resetAfterTime = true;
+  }
+
   if (resetAfterTime) {
-    auto afterSeconds = forSeconds.as<int>();
+    auto afterSeconds = forSeconds | _resetAfter;
     if (afterSeconds) {
-      _resetPinsMask = resetPinsMask;
+      _resetPinsMask |= resetPinsMask;
       _ticker.once_ms(afterSeconds * 1000, SwitchOnOff::resetPins, this);
     } else {
       _ticker.detach();
