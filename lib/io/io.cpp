@@ -84,7 +84,6 @@ void Io::handle(Io *instance) {
   if (io._ignoreEventsStart) {
     if (now <= io._ignoreEventsStart + io._ignorePeriodAfterTouchUp)
       return;
-  } else {
     io._ignoreEventsStart = 0;
   }
 
