@@ -24,7 +24,26 @@ Configuration configuration;
 
 void applyConfiguration(bool init) {
   auto config = configuration.read();
-  auto needsReboot = switchCommon.configure(*config);
+
+  static String lastHostName;
+  String hostName = (*config)["mdns"]["host"] | "";
+  bool needsReboot = false;
+
+  if (init) {
+    lastHostName = hostName;
+    if (hostName.length()) {
+      WiFi.setHostname(hostName.c_str());
+    }
+
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(true);
+    WiFi.begin();
+
+  } else {
+    needsReboot |= lastHostName != hostName;
+  }
+
+  needsReboot |= switchCommon.configure(*config);
   String configType = (*config)["type"] | "undefined";
 
   if (configType == "dimmer") {
@@ -47,13 +66,7 @@ void applyConfiguration(bool init) {
 
 void setup() {
   setCpuFrequencyMhz(80);
-
   configuration.begin();
-
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(true);
-  WiFi.begin();
-
   applyConfiguration(true);
   web.onAppendStatus([](JsonVariant doc) {
     doc["type"] = type;
@@ -72,11 +85,12 @@ void setup() {
   switchDimmer.onStateChanged([] { switchCommon.publishState(); });
   switchOnOff.onStateChanged([] { switchCommon.publishState(); });
   switchBlinds.onStateChanged([] { switchCommon.publishState(); });
-  switchCommon.onStateChanged([](JsonVariantConst state, bool isFromStoredState) {
-    switchDimmer.updateState(state, isFromStoredState);
-    switchOnOff.updateState(state, isFromStoredState);
-    switchBlinds.updateState(state, isFromStoredState);
-  });
+  switchCommon.onStateChanged(
+      [](JsonVariantConst state, bool isFromStoredState) {
+        switchDimmer.updateState(state, isFromStoredState);
+        switchOnOff.updateState(state, isFromStoredState);
+        switchBlinds.updateState(state, isFromStoredState);
+      });
   web.onReadConfig([] { return configuration.read(); });
   web.onSetConfig([](String config) {
     configuration.update(config);
