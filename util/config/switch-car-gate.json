@@ -1,0 +1,7 @@
+{
+  "type": "switch",
+  "pins": {},
+  "switch": {
+    "pins": [18, 19]
+  }
+}

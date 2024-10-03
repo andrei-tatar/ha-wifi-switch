@@ -1,0 +1,16 @@
+{
+  "type": "switch",
+  "pins": {
+    "qt": {
+      "sda": 33,
+      "scl": 32,
+      "ch": [0]
+    },
+    "led": [19],
+    "redLed": 18,
+    "redLedInvert": true
+  },
+  "switch": {
+    "pins": [25]
+  }
+}

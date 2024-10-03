@@ -1,0 +1,18 @@
+{
+  "type": "dimmer",
+  "pins": {
+    "qt": {
+      "sda": 33,
+      "scl": 32,
+      "ch": [2, 0, 5]
+    },
+    "led": [21, 19, 22],
+    "redLed": 18
+  },
+  "dimmer": {
+    "pins": {
+      "zero": 25,
+      "triac": 26
+    }
+  }
+}

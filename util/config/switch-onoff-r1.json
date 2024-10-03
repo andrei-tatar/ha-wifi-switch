@@ -1,0 +1,9 @@
+{
+  "type": "switch",
+  "pins": {
+    "input": [33]
+  },
+  "switch": {
+    "pins": [32]
+  }
+}

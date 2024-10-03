@@ -1,0 +1,19 @@
+{
+  "type": "blinds",
+  "pins": {
+    "qt": {
+      "sda": 33,
+      "scl": 32,
+      "ch": [0, 1, 2]
+    },
+    "led": [21, 22, 19],
+    "redLed": 18
+  },
+  "blinds": {
+    "pins": {
+      "open": 26,
+      "close": 25
+    },
+    "travel": 21000
+  }
+}

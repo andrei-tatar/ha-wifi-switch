@@ -10,7 +10,7 @@ DynamicJsonDocument *Configuration::read() {
   }
 
   auto json = preferences.getString(CONFIG_KEY);
-  DynamicJsonDocument *config = new DynamicJsonDocument(2048);
+  DynamicJsonDocument *config = new DynamicJsonDocument(4096);
   deserializeJson(*config, json);
   return config;
 }
