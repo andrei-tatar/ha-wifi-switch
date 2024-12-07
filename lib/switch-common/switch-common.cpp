@@ -66,7 +66,9 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     _stateTopic = mqttPrefix + host + "/state";
     _stateSetTopic = _stateTopic + "/set";
 
+    _mqttClientId = host;
     _mqtt.setServer(_mqttHost.c_str(), _mqttPort)
+        .setClientId(_mqttClientId.c_str())
         .setCredentials(_mqttUser.c_str(), _mqttPassword.c_str())
         .setWill(_onlineTopic.c_str(), 0, true, "false")
         .onMessage([this](char *topic, const char *payload,
