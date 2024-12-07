@@ -32,7 +32,7 @@ jobs:
           pip install --upgrade platformio
       - name: Extract build version
         id: get_version
-        uses: battila7/get-version-action@v4
+        uses: battila7/get-version-action@v2
 
       - name: Run PlatformIO
         env:
