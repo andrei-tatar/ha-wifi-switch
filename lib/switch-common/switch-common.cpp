@@ -74,7 +74,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
                           size_t len, size_t index, size_t total) {
-          if (len != total) {
+          if (index + len != total) {
             return;
           }
 
