@@ -6,7 +6,7 @@ bool SwitchOnOff::configure(const JsonVariantConst config) {
   bool needsReboot = false;
 
   for (uint8_t i = 0; i < IO_CNT; i++) {
-    int8_t newPin = config["pins"].getElement(i) | -1;
+    int8_t newPin = config["pins"][i] | -1;
     needsReboot |= _pins[i] != newPin;
     _pins[i] = newPin;
   }
@@ -57,10 +57,10 @@ void SwitchOnOff::updateLevels() {
 
 void SwitchOnOff::appendState(JsonVariant doc) const {
   if (_initialized) {
-    auto state = doc.createNestedArray("on");
+    auto state = doc["on"].to<JsonArray>();
     for (uint8_t i = 0; i < IO_CNT; i++) {
       if (_pins[i] != -1) {
-        state.addElement().set(_state[i]);
+        state.add(_state[i]);
       }
     }
   }
@@ -117,7 +117,7 @@ void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
     uint8_t onIndex = 0;
     for (uint8_t i = 0; i < IO_CNT; i++) {
       if (_pins[i] != -1) {
-        auto stateForPin = on.getElement(onIndex++);
+        auto stateForPin = on[onIndex++];
         if (stateForPin.is<bool>()) {
           bool newState = stateForPin;
           if (stateForPin) {

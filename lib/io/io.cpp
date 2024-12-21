@@ -199,13 +199,13 @@ void Io::updateLeds() {
 }
 
 void Io::appendStatus(JsonVariant doc) const {
-  auto ioStatus = doc.createNestedArray("io");
+  auto ioStatus = doc["io"].to<JsonArray>();
   if (_use == UseQt) {
     for (uint8_t i = 0; i < IO_CNT; i++) {
       auto value = _qt.signal(i);
       if (value == 0)
         continue;
-      auto parent = ioStatus.createNestedObject();
+      auto parent = ioStatus.add<JsonObject>();
       parent["value"] = value;
       parent["threshold"] = _qt.reference(i);
     }
@@ -214,7 +214,7 @@ void Io::appendStatus(JsonVariant doc) const {
       if (_inputs[i] == -1) {
         continue;
       }
-      auto parent = ioStatus.createNestedObject();
+      auto parent = ioStatus.add<JsonObject>();
       parent["value"] = digitalRead(_inputs[i]);
     }
   }

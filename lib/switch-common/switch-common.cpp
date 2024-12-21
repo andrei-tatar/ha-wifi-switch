@@ -8,7 +8,7 @@ SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
 void SwitchCommon::appendStatus(JsonVariant doc) const {
   _io.appendStatus(doc);
-  auto mqttStatus = doc.createNestedObject("mqtt");
+  auto mqttStatus = doc["mqtt"].to<JsonObject>();
   mqttStatus["connected"] = _mqtt.connected();
 }
 
@@ -84,8 +84,8 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
               unsubsribeFromState();
             }
 
-            DynamicJsonDocument stateUpdate(500);
-            if (deserializeJson(stateUpdate, payload, len) ==
+            JsonDocument stateUpdate;
+            if (deserializeJson(stateUpdate, payload, total) ==
                 DeserializationError::Code::Ok) {
               _stateChanged(stateUpdate, isRecall);
               _lastReceivedMessage = millis();
@@ -175,7 +175,7 @@ void SwitchCommon::publishStateInternal() {
     return;
   }
 
-  DynamicJsonDocument stateJson(500);
+  JsonDocument stateJson;
   _getState(stateJson);
   String state;
   serializeJson(stateJson, state);

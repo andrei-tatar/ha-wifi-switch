@@ -7,7 +7,7 @@
 #include <ESPAsyncWebServer.h>
 #include <Ticker.h>
 
-typedef std::function<DynamicJsonDocument *()> ReadConfigHandler;
+typedef std::function<JsonDocument *()> ReadConfigHandler;
 typedef std::function<void(String config)> SetConfigHandler;
 typedef std::function<void(JsonVariant doc)> AppendStatusHandler;
 

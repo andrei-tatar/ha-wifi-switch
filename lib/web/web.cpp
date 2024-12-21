@@ -22,13 +22,13 @@ void Web::handleNotFound(AsyncWebServerRequest *req) {
 }
 
 void Web::getStatus(AsyncWebServerRequest *req) {
-  DynamicJsonDocument json(2048);
+  JsonDocument json;
   json["freeHeap"] = ESP.getFreeHeap();
   json["uptimeSeconds"] = millis() / 1000;
   json["version"] = BUILD_VERSION;
   json["cpuFreqMhz"] = getCpuFrequencyMhz();
 
-  auto wifi = json.createNestedObject("wifi");
+  auto wifi = json["wifi"].to<JsonObject>();
   wifi["rssi"] = WiFi.RSSI();
   wifi["ip"] = WiFi.localIP().toString();
 

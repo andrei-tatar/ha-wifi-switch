@@ -10,7 +10,7 @@ private:
 
 public:
   void begin();
-  DynamicJsonDocument *read();
+  JsonDocument *read();
   void update(String json);
 };
 

@@ -47,11 +47,11 @@ void applyConfiguration(bool init) {
   String configType = (*config)["type"] | "undefined";
 
   if (configType == "dimmer") {
-    needsReboot |= switchDimmer.configure(config->getMember("dimmer"));
+    needsReboot |= switchDimmer.configure((*config)["dimmer"]);
   } else if (configType == "switch") {
-    needsReboot |= switchOnOff.configure(config->getMember("switch"));
+    needsReboot |= switchOnOff.configure((*config)["switch"]);
   } else if (configType == "blinds") {
-    needsReboot |= switchBlinds.configure(config->getMember("blinds"));
+    needsReboot |= switchBlinds.configure((*config)["blinds"]);
   }
 
   needsReboot |= type != configType;
@@ -72,7 +72,7 @@ void setup() {
     doc["type"] = type;
     switchCommon.appendStatus(doc);
 
-    auto state = doc.createNestedObject("state");
+    auto state = doc["state"].to<JsonObject>();
     switchDimmer.appendState(state);
     switchOnOff.appendState(state);
     switchBlinds.appendState(state);
