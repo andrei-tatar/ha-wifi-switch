@@ -65,6 +65,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     _onlineTopic = mqttPrefix + host + "/online";
     _stateTopic = mqttPrefix + host + "/state";
     _stateSetTopic = _stateTopic + "/set";
+    _debugTopic = mqttPrefix + host + "/debug";
 
     _mqttClientId = host;
     _mqtt.setServer(_mqttHost.c_str(), _mqttPort)
@@ -74,7 +75,12 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
                           size_t len, size_t index, size_t total) {
-          if (index + len != total) {
+          JsonDocument stateUpdate;
+          if (deserializeJson(stateUpdate, payload, total) !=
+              DeserializationError::Code::Ok) {
+            char debugMessage[200];
+            snprintf(debugMessage, sizeof(debugMessage), "JSON failure: len %d, index %d, total %d", len, index, total);
+            _mqtt.publish(_debugTopic.c_str(), 0, false, debugMessage);
             return;
           }
 
@@ -84,12 +90,8 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
               unsubsribeFromState();
             }
 
-            JsonDocument stateUpdate;
-            if (deserializeJson(stateUpdate, payload, total) ==
-                DeserializationError::Code::Ok) {
-              _stateChanged(stateUpdate, isRecall);
-              _lastReceivedMessage = millis();
-            }
+            _stateChanged(stateUpdate, isRecall);
+            _lastReceivedMessage = millis();
           }
         })
         .onConnect([this, host, mqttPrefix](bool sessionPresent) {

@@ -19,6 +19,7 @@ class SwitchCommon {
   String _onlineTopic;
   String _stateTopic;
   String _stateSetTopic;
+  String _debugTopic;
   String _mqttClientId;
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
