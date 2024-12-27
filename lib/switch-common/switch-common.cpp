@@ -81,18 +81,16 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
 
           JsonDocument stateUpdate;
-          if (deserializeJson(stateUpdate, payload, total) !=
-              DeserializationError::Code::Ok) {
-            char debugMessage[512];
-            auto offset = snprintf(debugMessage, sizeof(debugMessage), "JSON failure: len %d, index %d, total %d: ", len, index, total);
+          auto error = deserializeJson(stateUpdate, payload, total);
+          if (error != DeserializationError::Code::Ok) {
+            char msg[512];
+            auto offset = snprintf(msg, sizeof(msg), "err %d,len %d,ind %d,tot %d:", error.code(), len, index, total);
 
             for (uint8_t i = 0; i < total; i++) {
-              offset += snprintf(debugMessage + offset, sizeof(debugMessage) - offset, " %2x", payload[i]);
+              offset += snprintf(msg + offset, sizeof(msg) - offset, "%2x", payload[i]);
             }
 
-            if (offset < sizeof(debugMessage)) {
-              _mqtt.publish(_debugTopic.c_str(), 0, false, debugMessage);
-            }
+            _mqtt.publish(_debugTopic.c_str(), 0, false, msg);
             return;
           }
 
