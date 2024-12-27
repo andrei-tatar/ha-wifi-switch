@@ -75,12 +75,24 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
                           size_t len, size_t index, size_t total) {
+          if (!total) {
+            // skip empty messages, they are sent to reset the pending command
+            return;
+          }
+
           JsonDocument stateUpdate;
           if (deserializeJson(stateUpdate, payload, total) !=
               DeserializationError::Code::Ok) {
-            char debugMessage[200];
-            snprintf(debugMessage, sizeof(debugMessage), "JSON failure: len %d, index %d, total %d", len, index, total);
-            _mqtt.publish(_debugTopic.c_str(), 0, false, debugMessage);
+            char debugMessage[512];
+            auto offset = snprintf(debugMessage, sizeof(debugMessage), "JSON failure: len %d, index %d, total %d: ", len, index, total);
+
+            for (uint8_t i = 0; i < total; i++) {
+              offset += snprintf(debugMessage + offset, sizeof(debugMessage) - offset, " %2x", payload[i]);
+            }
+
+            if (offset < sizeof(debugMessage)) {
+              _mqtt.publish(_debugTopic.c_str(), 0, false, debugMessage);
+            }
             return;
           }
 
