@@ -84,10 +84,10 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           auto error = deserializeJson(stateUpdate, payload, total);
           if (error != DeserializationError::Code::Ok) {
             char msg[512];
-            auto offset = snprintf(msg, sizeof(msg), "err %d,len %d,ind %d,tot %d:", error.code(), len, index, total);
+            auto offset = snprintf(msg, sizeof(msg), "err %d,ind %d,len %d,tot %d:", error.code(), index, len, total);
 
             for (uint8_t i = 0; i < total; i++) {
-              offset += snprintf(msg + offset, sizeof(msg) - offset, "%2x", payload[i]);
+              offset += snprintf(msg + offset, sizeof(msg) - offset, "%02x", payload[i]);
             }
 
             _mqtt.publish(_debugTopic.c_str(), 0, false, msg);
