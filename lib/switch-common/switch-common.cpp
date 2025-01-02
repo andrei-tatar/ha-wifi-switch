@@ -75,13 +75,23 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .onMessage([this](char *topic, const char *payload,
                           AsyncMqttClientMessageProperties properties,
                           size_t len, size_t index, size_t total) {
-          if (!total) {
+
+#define MAX_MESSAGE_SIZE 512
+          if (!total || total > MAX_MESSAGE_SIZE) {
             // skip empty messages, they are sent to reset the pending command
             return;
           }
 
+          static uint8_t buffer[MAX_MESSAGE_SIZE];
+          memcpy(buffer + index, payload, len);
+
+          if (index + len < total) {
+            // handle fragmented messages
+            return;
+          }
+
           JsonDocument stateUpdate;
-          auto error = deserializeJson(stateUpdate, payload, total);
+          auto error = deserializeJson(stateUpdate, buffer, total);
           if (error != DeserializationError::Code::Ok) {
             char msg[512];
             auto offset = snprintf(msg, sizeof(msg), "err %d,ind %d,len %d,tot %d:", error.code(), index, len, total);
