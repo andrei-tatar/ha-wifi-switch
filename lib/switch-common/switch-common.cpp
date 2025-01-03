@@ -85,22 +85,25 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           static uint8_t buffer[MAX_MESSAGE_SIZE];
           memcpy(buffer + index, payload, len);
 
+          // handle fragmented messages
+          char debugMsg[512];
+          auto offset = snprintf(debugMsg, sizeof(debugMsg), "frag. index %d,len %d,total %d", index, len, total);
+          _mqtt.publish(_debugTopic.c_str(), 0, false, debugMsg);
+
           if (index + len < total) {
-            // handle fragmented messages
             return;
           }
 
           JsonDocument stateUpdate;
           auto error = deserializeJson(stateUpdate, buffer, total);
           if (error != DeserializationError::Code::Ok) {
-            char msg[512];
-            auto offset = snprintf(msg, sizeof(msg), "err %d,ind %d,len %d,tot %d:", error.code(), index, len, total);
+            auto offset = snprintf(debugMsg, sizeof(debugMsg), "json err %d,tot %d:", error.code(), total);
 
             for (uint8_t i = 0; i < total; i++) {
-              offset += snprintf(msg + offset, sizeof(msg) - offset, "%02x", payload[i]);
+              offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset, "%02x", buffer[i]);
             }
 
-            _mqtt.publish(_debugTopic.c_str(), 0, false, msg);
+            _mqtt.publish(_debugTopic.c_str(), 0, false, debugMsg);
             return;
           }
 
