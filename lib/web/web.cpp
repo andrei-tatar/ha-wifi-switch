@@ -24,7 +24,7 @@ void Web::handleNotFound(AsyncWebServerRequest *req) {
 void Web::getStatus(AsyncWebServerRequest *req) {
   JsonDocument json;
   json["freeHeap"] = ESP.getFreeHeap();
-  json["uptimeSeconds"] = millis() / 1000;
+  json["uptimeSeconds"] = esp_timer_get_time() / 1000000;
   json["version"] = BUILD_VERSION;
   json["cpuFreqMhz"] = getCpuFrequencyMhz();
 
