@@ -141,7 +141,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           }
         });
 
-    _timer.attach_ms(SECS(1), SwitchCommon::handle, this);
+    _timer.attach_ms(SECS(10), SwitchCommon::handle, this);
   } else {
     _mqtt.disconnect();
     _timer.detach();
@@ -174,7 +174,7 @@ void SwitchCommon::handle(SwitchCommon *instance) {
     }
   } else {
     me._sendStateSkips = 0;
-    if (++me._reconnectWifiSkips == 60) {
+    if (++me._reconnectWifiSkips == 6) {
       me._reconnectWifiSkips = 0;
 
       WiFi.mode(WIFI_STA);
