@@ -14,7 +14,6 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
     _dimmer.begin();
 
     _io.onTouchDown([this](int8_t key) { _dimmer.toggle(); });
-
     // _io.onTouchDown([this](int8_t key) {
     //   _wasOff = !_dimmer.isOn();
     //   if (!key || _wasOff) {
@@ -34,7 +33,7 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
     //     _dimmer.changeBrightness(key == 1 ? -1 : 1);
     //   }
     // });
-    // _io.onTouchUp([this] {
+    // _io.onTouchUp([this](int8_t key) {
     //   if (millis() <= _touchDown + TIMEOUT_FOR_CHANGES && !_wasOff) {
     //     _dimmer.toggle();
     //   }

@@ -62,6 +62,10 @@
         "list": "cpp",
         "ratio": "cpp",
         "mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "complex": "cpp",
+        "set": "cpp",
+        "iostream": "cpp",
+        "valarray": "cpp"
     }
 }

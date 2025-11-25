@@ -5,12 +5,21 @@
 #include "esp32/ulp.h"
 #include "ulp_common.h"
 
+/*
+
+HW changes to the off-the-shelf dimmer:
+- add bridge rectifier for zero detection (simpler code to handle each zero cross, instead of half of them)
+-
+
+*/
+
 enum Labels {
   Label_Start = 1,
   Label_ReadZeroPinAndWaitHigh,
   Label_ReadZeroPinAndWaitLow,
   Label_SkipDelays,
-  Label_LoadDelay,
+  Label_ReloadDelayLow,
+  Label_ReloadDelayHigh,
 };
 
 enum Registers {
@@ -26,58 +35,75 @@ enum Memory {
 
 #define TRIAC_OFF I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 0)
 #define TRIAC_ON I_WR_REG(RTC_GPIO_OUT_REG, _triacIo, _triacIo, 1)
-#define LOAD_DELAY I_MOVR(R0, Reg_PulseDelay)
-#define LOAD_DELAY_C                                                           \
-  LOAD_DELAY, I_MOVI(Reg_Temp, TICKS - TICKS_BEFORE_OFF),                      \
-      I_SUBR(R0, Reg_Temp, R0)
 
-#define TICKS 59247 // number of delay ticks per 10msec
+#define TRIAC_PULSE_LENGTH 1000 // ~ 116 uS
+
+#define TICKS 59247                   // number of delay ticks per 10msec
 #define TICKS_BEFORE_OFF (TICKS / 20) //.5 msec
 #define OFF_TICKS 0xFFFF
 
-#define Delay10k 0
-#define Delay1k 1
-#define Delay100 2
-#define Delay10 3
-#define DelayOver 4
-#define I(index, l) (index * 10 + l)
+enum DelayLabel {
+  Label_Delay10k = 0,
+  Label_Delay1k,
+  Label_Delay100,
+  Label_DelayOver,
+};
+#define I(l) (10 + l)
 
-#define WAIT(index)                                                            \
-  M_LABEL(I(index, Delay10k)), M_BL(I(index, Delay1k), 10000), I_DELAY(15000), \
-      I_SUBI(R0, R0, 10000), M_BX(I(index, Delay10k)),                         \
-      M_LABEL(I(index, Delay1k)), M_BL(I(index, Delay100), 1000),              \
-      I_DELAY(1500), I_SUBI(R0, R0, 1000), M_BX(I(index, Delay1k)),            \
-      M_LABEL(I(index, Delay100)), M_BL(I(index, Delay10), 100), I_DELAY(150), \
-      I_SUBI(R0, R0, 100), M_BX(I(index, Delay100)),                           \
-      M_LABEL(I(index, Delay10)), M_BL(I(index, DelayOver), 10), I_DELAY(10),  \
-      I_SUBI(R0, R0, 10), M_BX(I(index, Delay10)),                             \
-      M_LABEL(I(index, DelayOver))
+#define WAIT_TRIAC_TRIGGER M_LABEL(I(Label_Delay10k)),    \
+                           M_BL(I(Label_Delay1k), 10000), \
+                           I_DELAY(15000),                \
+                           I_SUBI(R0, R0, 10000),         \
+                           M_BX(I(Label_Delay10k)),       \
+                           M_LABEL(I(Label_Delay1k)),     \
+                           M_BL(I(Label_Delay100), 1000), \
+                           I_DELAY(1500),                 \
+                           I_SUBI(R0, R0, 1000),          \
+                           M_BX(I(Label_Delay1k)),        \
+                           M_LABEL(I(Label_Delay100)),    \
+                           M_BL(I(Label_DelayOver), 100), \
+                           I_DELAY(150),                  \
+                           I_SUBI(R0, R0, 100),           \
+                           M_BX(I(Label_Delay100)),       \
+                           M_LABEL(I(Label_DelayOver)),   \
+                           I_DELAY(50)
 
-#define WAIT_FOR_HIGH                                                          \
-  M_LABEL(Label_ReadZeroPinAndWaitHigh),                                       \
-      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),                             \
-      M_BL(Label_ReadZeroPinAndWaitHigh, 1)
+#define WAIT_FOR(debounce, BASE, BRANCH)           \
+  M_LABEL(Label_ReloadDelay##BASE),                \
+      I_MOVI(Reg_Temp, debounce),                  \
+      M_LABEL(Label_ReadZeroPinAndWait##BASE),     \
+      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo), \
+      BRANCH(Label_ReloadDelay##BASE, 1),          \
+      I_SUBI(Reg_Temp, Reg_Temp, 1),               \
+      I_MOVR(R0, Reg_Temp),                        \
+      M_BGE(Label_ReadZeroPinAndWait##BASE, 1)
 
-#define WAIT_FOR_LOW                                                           \
-  M_LABEL(Label_ReadZeroPinAndWaitLow),                                        \
-      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo),                             \
-      M_BGE(Label_ReadZeroPinAndWaitLow, 1)
+#define WAIT_FOR_HIGH(debounce) WAIT_FOR(debounce, High, M_BL)
+#define WAIT_FOR_LOW(debounce) WAIT_FOR(debounce, Low, M_BGE)
 
-Dimmer::Dimmer()
-    : _pinZero(-1), _pinTriac(-1), _brightness(100), _currentBrightness(0),
-      _minBrightness(1),
-      _on(false), _curve{8998, 8991, 8980, 8965, 8945, 8921, 8893, 8860, 8823,
-                         8782, 8737, 8688, 8634, 8576, 8515, 8450, 8380, 8307,
-                         8231, 8150, 8066, 7979, 7888, 7794, 7697, 7596, 7493,
-                         7387, 7277, 7166, 7051, 6934, 6815, 6694, 6570, 6445,
-                         6317, 6188, 6057, 5925, 5792, 5657, 5521, 5384, 5246,
-                         5108, 4969, 4829, 4690, 4550, 4410, 4271, 4131, 3992,
-                         3854, 3716, 3579, 3443, 3308, 3175, 3043, 2912, 2783,
-                         2655, 2530, 2406, 2285, 2166, 2049, 1934, 1823, 1713,
-                         1607, 1504, 1403, 1306, 1212, 1121, 1034, 950,  869,
-                         793,  720,  650,  585,  524,  466,  412,  363,  318,
-                         277,  240,  207,  179,  155,  135,  120,  109,  102,
-                         100} {}
+// #define WAIT_FOR_HIGH M_LABEL(Label_ReadZeroPinAndWaitHigh),       \
+//                       I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo), \
+//                       M_BL(Label_ReadZeroPinAndWaitHigh, 1)
+
+// #define WAIT_FOR_LOW M_LABEL(Label_ReadZeroPinAndWaitLow),        \
+//                      I_RD_REG(RTC_GPIO_IN_REG, _zeroIo, _zeroIo), \
+//                      M_BGE(Label_ReadZeroPinAndWaitLow, 1)
+
+Dimmer::Dimmer() : _pinZero(-1),
+                   _pinTriac(-1), _brightness(100), _currentBrightness(0),
+                   _minBrightness(1),
+                   _on(false), _curve{6500, 6480, 6460, 6440, 6420, 6400, 6380, 6360, 6340,
+                                      6320, 6300, 6280, 6260, 6240, 6220, 6200, 6180, 6160,
+                                      6140, 6120, 6100, 6080, 6060, 6040, 6020, 6000, 5980,
+                                      5960, 5940, 5920, 5900, 5880, 5860, 5840, 5820, 5800,
+                                      5780, 5760, 5740, 5720, 5700, 5680, 5660, 5640, 5620,
+                                      5595, 5543, 5491, 5436, 5380, 5322, 5262, 5200, 5137,
+                                      5072, 5005, 4936, 4865, 4792, 4718, 4641, 4563, 4483,
+                                      4400, 4316, 4230, 4141, 4051, 3958, 3864, 3767, 3669,
+                                      3568, 3465, 3360, 3253, 3144, 3032, 2919, 2803, 2685,
+                                      2564, 2442, 2317, 2190, 2060, 1928, 1794, 1658, 1519,
+                                      1378, 1235, 1089, 941, 790, 637, 481, 323, 163, 0} {
+}
 
 bool Dimmer::usePins(int8_t pinZero, int8_t pinTriac) {
   bool pinsChanged = _pinZero != pinZero || _pinTriac != pinTriac;
@@ -94,66 +120,45 @@ void Dimmer::begin() {
     return;
   }
 
-  _ticker.attach_ms(25, Dimmer::handle, this);
+  _ticker.attach_ms(10, Dimmer::handle, this);
 
   pinMode(_pinTriac, OUTPUT);
 
-  // rtc_gpio_init((gpio_num_t)_pinTriac);
-  // rtc_gpio_set_direction((gpio_num_t)_pinTriac, RTC_GPIO_MODE_OUTPUT_ONLY);
-  // rtc_gpio_set_level((gpio_num_t)_pinTriac, 0);
+  rtc_gpio_init((gpio_num_t)_pinTriac);
+  rtc_gpio_set_direction((gpio_num_t)_pinTriac, RTC_GPIO_MODE_OUTPUT_ONLY);
+  rtc_gpio_set_level((gpio_num_t)_pinTriac, 0);
 
-  // rtc_gpio_init((gpio_num_t)_pinZero);
-  // rtc_gpio_set_direction((gpio_num_t)_pinZero, RTC_GPIO_MODE_INPUT_ONLY);
-  // rtc_gpio_pullup_en((gpio_num_t)_pinZero);
+  rtc_gpio_init((gpio_num_t)_pinZero);
+  rtc_gpio_set_direction((gpio_num_t)_pinZero, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_pullup_en((gpio_num_t)_pinZero);
+  // rtc_gpio_pulldown_dis((gpio_num_t)_pinZero);
 
-  // uint32_t _triacIo =
-  //     RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinTriac);
-  // uint32_t _zeroIo =
-  //     RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
+  uint32_t _triacIo =
+      RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinTriac);
+  uint32_t _zeroIo =
+      RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinZero);
 
-  // const ulp_insn_t program[] = {
-  //     TRIAC_OFF, I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),
+  const ulp_insn_t program[] = {
+      TRIAC_OFF,                                        // start with triac off
+      I_MOVI(Reg_DelayMemoryLocation, Mem_Delay),       // load delay location
+      M_LABEL(Label_Start),                             // ---- start:
+      WAIT_FOR_LOW(10),                                 // wait zero cross
+      I_MOVR(R0, Reg_PulseDelay),                       // load delay into R0
+      M_BGE(Label_SkipDelays, OFF_TICKS),               // skip pulsing if off
+      WAIT_TRIAC_TRIGGER,                               // wait for delay before turning on triac
+      TRIAC_ON,                                         // triac on
+      I_DELAY(TRIAC_PULSE_LENGTH),                      // wait for pulse length
+      M_LABEL(Label_SkipDelays),                        // skip here, when off
+      TRIAC_OFF,                                        // triac off
+      I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0), // load the delay time from memory
+      WAIT_FOR_HIGH(20),                                // wait until period ends
+      M_BX(Label_Start)                                 // ---- back to start ^
+  };
 
-  //     M_LABEL(Label_Start),
-
-  //     WAIT_FOR_HIGH,                      // wait zero cross to become 1
-  //     LOAD_DELAY,                         // load delay into R0
-  //     M_BGE(Label_SkipDelays, OFF_TICKS), // skip pulsing if off
-
-  //     WAIT(1),      // wait
-  //     TRIAC_ON,     // triac on
-  //     LOAD_DELAY_C, // load (10msec-delay) into R0
-  //     WAIT(2),      // wait
-  //     TRIAC_OFF,    // triac off
-
-  //     I_DELAY(TICKS_BEFORE_OFF), // wait until next half period
-
-  //     LOAD_DELAY,   // load delay into R0
-  //     WAIT(3),      // wait
-  //     TRIAC_ON,     // triac on
-  //     LOAD_DELAY_C, // load (10msec-delay) into R0
-  //     WAIT(4),      // wait
-  //     TRIAC_OFF,    // triac off
-
-  //     M_BX(Label_LoadDelay),
-
-  //     M_LABEL(Label_SkipDelays),
-  //     WAIT_FOR_LOW, // wait for 0 (when dimmer is off)
-
-  //     // load the delay time from memory
-  //     M_LABEL(Label_LoadDelay),
-  //     I_LD(Reg_PulseDelay, Reg_DelayMemoryLocation, 0),
-
-  //     // start over again
-  //     M_BX(Label_Start),
-
-  //     I_HALT()};
-
-  // RTC_SLOW_MEM[Mem_Delay] = OFF_TICKS;
-  // size_t load_addr = Mem_Program;
-  // size_t size = sizeof(program) / sizeof(ulp_insn_t);
-  // ulp_process_macros_and_load(load_addr, program, &size);
-  // ulp_run(load_addr);
+  RTC_SLOW_MEM[Mem_Delay] = OFF_TICKS;
+  size_t size = sizeof(program) / sizeof(ulp_insn_t);
+  ulp_process_macros_and_load(Mem_Program, program, &size);
+  ulp_run(Mem_Program);
 }
 
 void Dimmer::handle(Dimmer *instance) {
@@ -163,24 +168,28 @@ void Dimmer::handle(Dimmer *instance) {
     dimmer._minBrightness = 1;
   }
 
-  // auto targetBrightness = dimmer._on
-  //                             ? max(dimmer._minBrightness,
-  //                             dimmer._brightness) : dimmer._minBrightness;
-  // if (dimmer._currentBrightness != targetBrightness) {
-  //   if (dimmer._currentBrightness < targetBrightness)
-  //     dimmer._currentBrightness++;
-  //   else
-  //     dimmer._currentBrightness--;
+  auto targetBrightness = dimmer._on
+                              ? max(dimmer._minBrightness,
+                                    dimmer._brightness)
+                              : dimmer._minBrightness;
 
-  //   RTC_SLOW_MEM[Mem_Delay] =
-  //       dimmer._on || dimmer._minBrightnessUntil ||
-  //               dimmer._currentBrightness != targetBrightness
-  //           ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
-  //           : OFF_TICKS;
-  // }
+  if (dimmer._currentBrightness != targetBrightness) {
+    if (dimmer._currentBrightness < targetBrightness)
+      dimmer._currentBrightness++;
+    else
+      dimmer._currentBrightness--;
+  }
 
-  digitalWrite(dimmer._pinTriac,
-               dimmer._on || dimmer._minBrightnessUntil ? HIGH : LOW);
+  uint16_t desiredTicks = dimmer._on || dimmer._minBrightnessUntil ||
+                                  dimmer._currentBrightness != targetBrightness
+                              ? dimmer._curve[dimmer._currentBrightness - 1] * TICKS / 10000
+                              : OFF_TICKS;
+  static uint16_t lastTicks = 0;
+
+  if (desiredTicks != lastTicks) {
+    lastTicks = desiredTicks;
+    RTC_SLOW_MEM[Mem_Delay] = desiredTicks;
+  }
 }
 
 void Dimmer::toggle() { setOn(!_on); }
