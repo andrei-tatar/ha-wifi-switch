@@ -1,5 +1,5 @@
 {
-  "type": "switch",
+  "type": "dimmer",
   "pins": {
     "qt": {
       "sda": 33,
@@ -10,7 +10,10 @@
     "redLed": 18,
     "redLedInvert": true
   },
-  "switch": {
-    "pins": [25]
+  "dimmer": {
+    "pins": {
+      "zero": 25,
+      "triac": 26
+    }
   }
 }
