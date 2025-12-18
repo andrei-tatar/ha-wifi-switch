@@ -122,7 +122,7 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
             _mqtt.subscribe(_stateSetTopic.c_str(), 0);
             publishStateInternal();
           }
-          _mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, true,
+          _mqtt.publish((mqttPrefix + host + "/version").c_str(), 0, false,
                         BUILD_VERSION);
           _mqtt.publish(_onlineTopic.c_str(), 0, true, "true");
 
