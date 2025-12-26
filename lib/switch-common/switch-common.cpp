@@ -109,6 +109,10 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
               unsubsribeFromState();
             }
 
+            if (stateUpdate["suspendInputs"].is<bool>()) {
+              _io.setSuspendInputs(stateUpdate["suspendInputs"]);
+            }
+
             _stateChanged(stateUpdate, isRecall);
             _lastReceivedMessage = millis();
           }
@@ -192,12 +196,10 @@ void SwitchCommon::resetPendingCommand() {
 void SwitchCommon::publishStateInternal() {
   _lastStateUpdateSent = millis();
 
-  if (!_getState) {
-    return;
-  }
-
   JsonDocument stateJson;
-  _getState(stateJson);
+  if (_getState) {
+    _getState(stateJson);
+  }
   String state;
   serializeJson(stateJson, state);
   _mqtt.publish(_stateTopic.c_str(), 0, true, state.c_str());

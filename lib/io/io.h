@@ -27,6 +27,7 @@ private:
   uint8_t _levelBlue[IO_CNT], _levelBlueTouched, _levelRed;
   bool _initialized = false;
   uint32_t _ignorePeriodAfterTouchUp;
+  bool _suspendInputs = false;
 
   TouchKeyHandler _touchDown, _touchPress;
   TouchKeyHandler _touchUp;
@@ -49,6 +50,8 @@ public:
   Io &onTouchUp(TouchKeyHandler handler);
   void begin(uint32_t ignorePeriodAfterTouchUp, bool oneKeyAtATime);
   void appendStatus(JsonVariant doc) const;
+
+  void setSuspendInputs(bool suspend);
 };
 
 #endif

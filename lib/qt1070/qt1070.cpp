@@ -128,7 +128,7 @@ uint16_t Qt1070::signal(uint8_t index) const {
     return 0;
   }
 
-  uint8_t channel = _channels[index];
+  int8_t channel = _channels[index];
   if (channel == -1) {
     return 0;
   }
@@ -140,7 +140,7 @@ uint16_t Qt1070::reference(uint8_t index) const {
     return 0;
   }
 
-  uint8_t channel = _channels[index];
+  int8_t channel = _channels[index];
   if (channel == -1) {
     return 0;
   }

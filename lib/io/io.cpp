@@ -112,6 +112,10 @@ void Io::handle(Io *instance) {
     }
   }
 
+  if (io._suspendInputs) {
+    io._stablePressed = 0;
+  }
+
   if (!io._stableUpdated && now - io._lastStableChange >= io._debounce) {
     io._stableUpdated = true;
 
@@ -199,13 +203,14 @@ void Io::updateLeds() {
 }
 
 void Io::appendStatus(JsonVariant doc) const {
-  auto ioStatus = doc["io"].to<JsonArray>();
+  doc["io"]["suspendInputs"] = _suspendInputs;
+  auto ioChannels = doc["io"]["channels"].to<JsonArray>();
   if (_use == UseQt) {
     for (uint8_t i = 0; i < IO_CNT; i++) {
       auto value = _qt.signal(i);
       if (value == 0)
         continue;
-      auto parent = ioStatus.add<JsonObject>();
+      auto parent = ioChannels.add<JsonObject>();
       parent["value"] = value;
       parent["threshold"] = _qt.reference(i);
     }
@@ -214,8 +219,12 @@ void Io::appendStatus(JsonVariant doc) const {
       if (_inputs[i] == -1) {
         continue;
       }
-      auto parent = ioStatus.add<JsonObject>();
+      auto parent = ioChannels.add<JsonObject>();
       parent["value"] = digitalRead(_inputs[i]);
     }
   }
+}
+
+void Io::setSuspendInputs(bool suspend) {
+  _suspendInputs = suspend;
 }

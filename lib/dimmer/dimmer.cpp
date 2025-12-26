@@ -9,7 +9,7 @@
 
 HW changes to the off-the-shelf dimmer:
 - add bridge rectifier for zero detection (simpler code to handle each zero cross, instead of half of them)
--
+- change bridge resistor to 200k (from 150k) for better sensitivity
 
 */
 
@@ -131,7 +131,6 @@ void Dimmer::begin() {
   rtc_gpio_init((gpio_num_t)_pinZero);
   rtc_gpio_set_direction((gpio_num_t)_pinZero, RTC_GPIO_MODE_INPUT_ONLY);
   rtc_gpio_pullup_en((gpio_num_t)_pinZero);
-  // rtc_gpio_pulldown_dis((gpio_num_t)_pinZero);
 
   uint32_t _triacIo =
       RTC_GPIO_OUT_DATA_S + rtc_io_number_get((gpio_num_t)_pinTriac);
