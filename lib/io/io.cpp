@@ -112,16 +112,12 @@ void Io::handle(Io *instance) {
     }
   }
 
-  if (io._suspendInputs) {
-    io._stablePressed = 0;
-  }
-
   if (!io._stableUpdated && now - io._lastStableChange >= io._debounce) {
     io._stableUpdated = true;
 
     if (io._stablePressed != io._pressed) {
 
-      if (io._touchUp) {
+      if (!io._suspendInputs && io._touchUp) {
         for (uint8_t i = 0; i < IO_CNT; i++) {
           uint8_t mask = 1 << i;
           if ((io._pressed & mask) && !(io._stablePressed & mask)) {
@@ -139,7 +135,7 @@ void Io::handle(Io *instance) {
       io._pressed = io._stablePressed;
       io.updateLeds();
 
-      if (io._touchDown) {
+      if (!io._suspendInputs && io._touchDown) {
         for (uint8_t i = 0; i < IO_CNT; i++) {
           uint8_t mask = 1 << i;
           if (!(lastPressed & mask) && (io._pressed & mask)) {
@@ -153,7 +149,7 @@ void Io::handle(Io *instance) {
     }
   }
 
-  if (io._touchPress && io._pressed &&
+  if (!io._suspendInputs && io._touchPress && io._pressed &&
       now - io._lastSentEvent >= IO_PRESS_REPEAT) {
     io._lastSentEvent = now;
     for (uint8_t i = 0; i < IO_CNT; i++) {
