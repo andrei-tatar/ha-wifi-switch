@@ -1,4 +1,5 @@
 #include "web.h"
+#include <WiFi.h>
 
 using namespace std;
 using namespace std::placeholders;
@@ -8,11 +9,11 @@ void NO_OP_REQ(AsyncWebServerRequest *req) {}
 Web::Web() : _server(80) {}
 
 void Web::begin(String type) {
-  _server.on("/api/status", HTTP_GET, bind(&Web::getStatus, this, _1));
-  _server.on("/api/config", HTTP_GET, bind(&Web::getConfig, this, _1));
+  _server.on("/api/status", HTTP_GET, (ArRequestHandlerFunction)bind(&Web::getStatus, this, _1));
+  _server.on("/api/config", HTTP_GET, (ArRequestHandlerFunction)bind(&Web::getConfig, this, _1));
   _server.on("/api/config", HTTP_POST, NO_OP_REQ, NULL,
              bind(&Web::updateConfig, this, _1, _2, _3, _4, _5));
-  _server.on("/api/reboot", HTTP_POST, bind(&Web::reboot, this, _1));
+  _server.on("/api/reboot", HTTP_POST, (ArRequestHandlerFunction)bind(&Web::reboot, this, _1));
   _server.onNotFound(bind(&Web::handleNotFound, this, _1));
   _server.begin();
 }

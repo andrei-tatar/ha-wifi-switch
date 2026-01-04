@@ -49,14 +49,12 @@ void Io::begin(uint32_t ignorePeriodAfterTouchUp, bool oneKeyAtATime) {
 
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
-      ledcSetup(i, 5000, 8);
-      ledcAttachPin(_ledPins[i], i);
+      ledcAttach(_ledPins[i], 5000, 8);
     }
   }
 
   if (_ledRed != -1) {
-    ledcSetup(IO_CNT, 5000, 8);
-    ledcAttachPin(_ledRed, IO_CNT);
+    ledcAttach(_ledRed, 5000, 8);
   }
 
   switch (_use) {
@@ -188,12 +186,12 @@ Io &Io::setLedLevels(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t bTouch,
 
 void Io::updateLeds() {
   if (_ledRed != -1) {
-    ledcWrite(IO_CNT, _invertLedRed ? (255 - _levelRed) : _levelRed);
+    ledcWrite(_ledRed, _invertLedRed ? (255 - _levelRed) : _levelRed);
   }
   for (uint8_t i = 0; i < IO_CNT; i++) {
     if (_ledPins[i] != -1) {
       ledcWrite(
-          i, 255 - (_pressed & (1 << i) ? _levelBlueTouched : _levelBlue[i]));
+          _ledPins[i], 255 - (_pressed & (1 << i) ? _levelBlueTouched : _levelBlue[i]));
     }
   }
 }

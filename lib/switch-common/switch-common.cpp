@@ -3,10 +3,11 @@
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <Ticker.h>
+#include <WiFi.h>
 
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
-void SwitchCommon::appendStatus(JsonVariant doc) const {
+void SwitchCommon::appendStatus(JsonVariant doc) {
   _io.appendStatus(doc);
   auto mqttStatus = doc["mqtt"].to<JsonObject>();
   mqttStatus["connected"] = _mqtt.connected();
@@ -67,36 +68,23 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     _stateSetTopic = _stateTopic + "/set";
     _debugTopic = mqttPrefix + host + "/debug";
 
+    _mqttUri = "mqtt://" + _mqttHost + ":" + String(_mqttPort);
     _mqttClientId = host;
-    _mqtt.setServer(_mqttHost.c_str(), _mqttPort)
+
+    _mqtt.setServer(_mqttUri.c_str())
         .setClientId(_mqttClientId.c_str())
         .setCredentials(_mqttUser.c_str(), _mqttPassword.c_str())
         .setWill(_onlineTopic.c_str(), 0, true, "false")
-        .onMessage([this](char *topic, const char *payload,
-                          AsyncMqttClientMessageProperties properties,
-                          size_t len, size_t index, size_t total) {
-
-#define MAX_MESSAGE_SIZE 512
-          if (!total || total > MAX_MESSAGE_SIZE) {
-            // skip empty messages, they are sent to reset the pending command
-            return;
-          }
-
-          static uint8_t buffer[MAX_MESSAGE_SIZE];
-          memcpy(buffer + index, payload, len);
-
-          if (index + len < total) {
-            return;
-          }
-
+        .onMessage([this](char *topic, const char *payload, int retain, int qos, bool dup) {
           JsonDocument stateUpdate;
-          auto error = deserializeJson(stateUpdate, buffer, total);
+          auto error = deserializeJson(stateUpdate, payload);
           if (error != DeserializationError::Code::Ok) {
             char debugMsg[512];
+            auto total = strlen(payload);
             auto offset = snprintf(debugMsg, sizeof(debugMsg), "json err %d,tot %d:", error.code(), total);
 
             for (uint8_t i = 0; i < total; i++) {
-              offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset, "%02x", buffer[i]);
+              offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset, "%02x", payload[i]);
             }
 
             _mqtt.publish(_debugTopic.c_str(), 0, false, debugMsg);
@@ -177,7 +165,7 @@ void SwitchCommon::handle(SwitchCommon *instance) {
     if (++me._reconnectWifiSkips == 6) {
       me._reconnectWifiSkips = 0;
 
-      WiFi.mode(WIFI_STA);
+      WiFi.mode(WIFI_MODE_STA);
       WiFi.disconnect();
       WiFi.begin();
     }

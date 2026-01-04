@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <AsyncJson.h>
+#include <WiFi.h>
 
 Io io;
 SwitchCommon switchCommon(io);

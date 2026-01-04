@@ -3,7 +3,7 @@
 
 #include "io.h"
 #include <ArduinoJson.h>
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include <Ticker.h>
 
 typedef std::function<void(JsonVariant state)> GetJsonStateHandler;
@@ -13,6 +13,7 @@ typedef std::function<void(JsonVariant state, bool isFromStoredState)>
 class SwitchCommon {
   Io &_io;
   String _mqttHost;
+  String _mqttUri;
   String _mqttPassword;
   String _mqttUser;
   uint16_t _mqttPort;
@@ -24,7 +25,7 @@ class SwitchCommon {
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
   bool _updateFromStateOnBoot = true;
-  AsyncMqttClient _mqtt;
+  PsychicMqttClient _mqtt;
   Ticker _timer;
   int _reconnectWifiSkips = 0;
   int _sendStateSkips = 0;
@@ -46,7 +47,7 @@ public:
 
   void onGetState(GetJsonStateHandler getState);
   bool configure(const JsonVariantConst config);
-  void appendStatus(JsonVariant doc) const;
+  void appendStatus(JsonVariant doc);
   void publishState();
   void onStateChanged(JsonStateChangedHandler stateChanged);
 };

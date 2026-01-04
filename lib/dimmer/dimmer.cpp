@@ -3,6 +3,7 @@
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
 #include "esp32/ulp.h"
+#include "soc/rtc_io_reg.h"
 #include "ulp_common.h"
 
 /*
