@@ -145,7 +145,9 @@ void SwitchCommon::handle(SwitchCommon *instance) {
   auto now = millis();
   if (WiFi.isConnected()) {
     me._reconnectWifiSkips = 0;
-    me._mqtt.connect();
+    if (!me._mqtt.connected()) {
+      me._mqtt.connect();
+    }
 
     if (me._connectedAt && now > me._connectedAt + 5000) {
       me._connectedAt = 0;
