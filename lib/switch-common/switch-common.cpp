@@ -76,11 +76,15 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
         .setCredentials(_mqttUser.c_str(), _mqttPassword.c_str())
         .setWill(_onlineTopic.c_str(), 0, true, "false")
         .onMessage([this](char *topic, const char *payload, int retain, int qos, bool dup) {
+          auto total = strlen(payload);
+          if (!total) {
+            return;
+          }
+
           JsonDocument stateUpdate;
           auto error = deserializeJson(stateUpdate, payload);
           if (error != DeserializationError::Code::Ok) {
             char debugMsg[512];
-            auto total = strlen(payload);
             auto offset = snprintf(debugMsg, sizeof(debugMsg), "json err %d,tot %d:", error.code(), total);
 
             for (uint8_t i = 0; i < total; i++) {
