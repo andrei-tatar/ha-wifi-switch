@@ -103,4 +103,7 @@ void setup() {
   web.begin(type);
 }
 
-void loop() { ArduinoOTA.handle(); }
+void loop() {
+  ArduinoOTA.handle();
+  delay(50); // let the CPU idle, this loop has nothing else to do
+}

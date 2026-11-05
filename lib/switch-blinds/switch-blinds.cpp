@@ -224,7 +224,10 @@ void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
       return;
 
     // restore state from JSON (most probably motor position hasn't changed)
+    // Restoring the target is deliberate: blinds devices can reset when the
+    // motor starts, and this resumes the command that the reset interrupted.
     _position = state["current"];
+    _targetPosition = _position; // so that a restored target always counts as new
     int targetPosition = state["target"];
     setTargetPosition(targetPosition, false);
   } else {

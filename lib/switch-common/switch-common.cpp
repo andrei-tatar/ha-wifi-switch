@@ -26,7 +26,6 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
 
   auto pinsQtConfig = pinsConfig["qt"];
   auto inputPinsConfig = pinsConfig["input"];
-  auto pinsTouchConfig = pinsConfig["touch"];
 
   if (!pinsQtConfig.isNull()) {
     int8_t qtSda = pinsQtConfig["sda"] | -1;
@@ -44,7 +43,7 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
   }
 
   bool isSwitch = config["type"] == "switch";
-  _io.begin(isSwitch ? 0 : MSEC(500), isSwitch ? false : true);
+  _io.begin(isSwitch ? 0 : MSEC(150), isSwitch ? false : true);
 
   return pinsChanged;
 }

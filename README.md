@@ -132,7 +132,7 @@ Topics are `<prefix>/<host>/<topic>`:
 | `reset-reason` | Device publishes | Reset reason code, sent on the first connection after boot |
 | `debug` | Device publishes | Details of messages that failed to parse |
 
-After booting, a device reads its own retained `state` to restore what it was doing, then starts listening on `state/set`. Switch outputs that were on a timer (`for` or `resetAfter`) stay off, because the timer doesn't survive a reboot. While any are running, `state` includes `autoOff`, a bitmask of those outputs.
+After booting, a device reads its own retained `state` to restore what it was doing, then starts listening on `state/set`. Blinds restore their position and resume a move that the reboot interrupted. Switch outputs that were on a timer (`for` or `resetAfter`) stay off, because the timer doesn't survive a reboot. While any are running, `state` includes `autoOff`, a bitmask of those outputs.
 
 ### Commands
 
