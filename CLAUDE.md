@@ -46,7 +46,11 @@ Code in `lib/<name>/` is PlatformIO private libraries, included by bare header n
 
 ### Execution model
 
-`loop()` only runs `ArduinoOTA.handle()` and then sleeps for 50 ms so the CPU can idle. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll. MQTT callbacks run on the esp-mqtt task while it holds its API lock, and `publish` waits for that lock, so a role that shares state between the two must not publish while holding its own lock (see `SwitchBlinds::_lock` and `SwitchOnOff::_lock`).
+`loop()` only runs `ArduinoOTA.handle()` and the new-firmware check, then sleeps for 50 ms so the CPU can idle. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll. MQTT callbacks run on the esp-mqtt task while it holds its API lock, and `publish` waits for that lock, so a role that shares state between the two must not publish while holding its own lock (see `SwitchBlinds::_lock` and `SwitchOnOff::_lock`).
+
+### Firmware rollback
+
+`verifyRollbackLater()` in `switch-common.cpp` stops the framework from accepting a new firmware at boot. `SwitchCommon::checkNewFirmware()` keeps it after 30 s connected to MQTT (Wi-Fi if MQTT isn't configured), or rolls back if it isn't connected 5 minutes after boot. The bootloader also rolls back on any reset before the firmware is kept, including an intentional reboot and a blinds motor-start reset. The check runs in `loop()` because `ArduinoOTA.handle()` blocks there during an upload, so a rollback can't interrupt a flash. `firmwareState` in `/api/status` shows whether a device is protected, which depends on the bootloader it was flashed with over serial.
 
 ### Configuration lifecycle
 

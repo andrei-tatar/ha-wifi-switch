@@ -23,6 +23,26 @@ pio device monitor                               # serial console, 115200 baud
 
 The firmware is written to `.pio/build/esp32/ha_switch_esp32.bin`. Publishing a GitHub release builds it and attaches it to the release.
 
+### Automatic rollback
+
+A firmware flashed over the network is kept once it has stayed connected to MQTT for 30 seconds, or to Wi-Fi if MQTT isn't configured. Until then, the device goes back to the previous firmware if:
+
+- it isn't connected 5 minutes after booting. If the broker or Wi-Fi is down at that point, a good firmware is rolled back too.
+- it resets for any reason: a crash, a power cut, `POST /api/reboot`, or a config change that needs a reboot. Wait until the firmware is kept before sending it config.
+
+After a rollback, the device reports the older `version`. This doesn't catch a firmware that connects and then misbehaves, or one that hangs without resetting.
+
+`firmwareState` in `GET /api/status` shows where the device stands:
+
+| Value | Meaning |
+| --- | --- |
+| `pending` | On trial |
+| `valid` | Kept |
+| `new`, `undefined` | Not protected: the bootloader, or the firmware that did the flash, doesn't support rollback |
+| `none` | Only flashed over serial so far, so there's nothing to go back to |
+
+Rollback needs a bootloader from arduino-esp32 2.0.4 or later. Network flashing doesn't update the bootloader, so an older device needs a serial flash to get this protection.
+
 ## Setting up a new device
 
 1. Flash the device over serial. Network flashing is the default, so change `upload_protocol` in `platformio.ini` for this step.
@@ -159,7 +179,7 @@ The API has no authentication, so keep devices on a trusted network. `GET /api/c
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/status` | Version, uptime, free heap, Wi-Fi, MQTT, input readings, and current state |
+| `GET /api/status` | Version, firmware state, uptime, free heap, Wi-Fi, MQTT, input readings, and current state |
 | `GET /api/config` | Read the stored config |
 | `POST /api/config` | Replace the stored config |
 | `POST /api/reboot` | Reboot the device |

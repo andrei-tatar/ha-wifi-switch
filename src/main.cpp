@@ -101,9 +101,11 @@ void setup() {
     return true;
   });
   web.begin(type);
+  switchCommon.startFirmwareCheck();
 }
 
 void loop() {
   ArduinoOTA.handle();
+  switchCommon.checkNewFirmware();
   delay(50); // let the CPU idle, this loop has nothing else to do
 }

@@ -33,6 +33,8 @@ class SwitchCommon {
   uint32_t _connectedAt = 0;
   uint32_t _lastReceivedMessage = 0;
   uint32_t _lastStateUpdateSent = 0;
+  bool _firmwarePending = false;
+  uint32_t _firmwareHealthySince = 0;
 
   bool configureIo(const JsonVariantConst config);
   bool configureMqtt(const JsonVariantConst config, String host);
@@ -49,6 +51,8 @@ public:
   bool configure(const JsonVariantConst config);
   void appendStatus(JsonVariant doc);
   void publishState();
+  void startFirmwareCheck();
+  void checkNewFirmware();
   void onStateChanged(JsonStateChangedHandler stateChanged);
 };
 

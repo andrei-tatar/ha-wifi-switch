@@ -4,13 +4,75 @@
 #include <ESPmDNS.h>
 #include <Ticker.h>
 #include <WiFi.h>
+#include <esp_ota_ops.h>
+
+#define FIRMWARE_HEALTHY_TIME SECS(30)
+#define FIRMWARE_ROLLBACK_TIME SECS(300)
+
+// Stops the framework from accepting a new firmware as soon as it boots, so that
+// checkNewFirmware() can decide instead.
+extern "C" bool verifyRollbackLater() { return true; }
+
+static const char *firmwareState() {
+  esp_ota_img_states_t state;
+  if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) != ESP_OK) {
+    return "none"; // never flashed over the network
+  }
+
+  switch (state) {
+  case ESP_OTA_IMG_VALID:
+    return "valid";
+  case ESP_OTA_IMG_PENDING_VERIFY:
+    return "pending";
+  case ESP_OTA_IMG_NEW:
+    return "new";
+  default:
+    return "undefined";
+  }
+}
 
 SwitchCommon::SwitchCommon(Io &io) : _io(io) {}
 
 void SwitchCommon::appendStatus(JsonVariant doc) {
   _io.appendStatus(doc);
+  doc["firmwareState"] = firmwareState();
   auto mqttStatus = doc["mqtt"].to<JsonObject>();
   mqttStatus["connected"] = _mqtt.connected();
+}
+
+void SwitchCommon::startFirmwareCheck() {
+  esp_ota_img_states_t state;
+  _firmwarePending =
+      esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) == ESP_OK &&
+      state == ESP_OTA_IMG_PENDING_VERIFY;
+}
+
+// A new firmware is kept once it stays connected for FIRMWARE_HEALTHY_TIME. If it
+// isn't by FIRMWARE_ROLLBACK_TIME, this switches back to the previous firmware. The
+// bootloader does the same if the device resets before the firmware is kept.
+//
+// Called from loop() rather than a Ticker: ArduinoOTA.handle() blocks loop() during
+// an upload, so the rollback can't interrupt a fix that's being flashed.
+void SwitchCommon::checkNewFirmware() {
+  if (!_firmwarePending) {
+    return;
+  }
+
+  uint32_t now = millis();
+  bool healthy = _mqttUri.length() ? _mqtt.connected() : WiFi.isConnected();
+  if (!healthy) {
+    _firmwareHealthySince = 0;
+  } else if (!_firmwareHealthySince) {
+    _firmwareHealthySince = now;
+  }
+
+  if (_firmwareHealthySince && now - _firmwareHealthySince >= FIRMWARE_HEALTHY_TIME) {
+    _firmwarePending = false;
+    esp_ota_mark_app_valid_cancel_rollback();
+  } else if (!_firmwareHealthySince && now >= FIRMWARE_ROLLBACK_TIME) {
+    _firmwarePending = false; // the call only returns if there's nothing to go back to
+    esp_ota_mark_app_invalid_rollback_and_reboot();
+  }
 }
 
 bool SwitchCommon::configureIo(const JsonVariantConst config) {
