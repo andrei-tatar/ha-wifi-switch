@@ -12,7 +12,7 @@ If `pio` isn't on `PATH`, it's at `~/.platformio/penv/bin/pio`.
 
 ```sh
 pio run                                                # build (the only check CI runs)
-VERSION=1.2.3 pio run                                  # build with a version baked in (default 0.0.1)
+VERSION=1.2.3 pio run                                  # build with a set version (default: from git describe)
 pio run -t upload --upload-port <device>.local         # flash over the network (OTA)
 pio device monitor                                     # serial console, 115200 baud
 node util/apply_config.mjs                             # push util/config/*.json to devices (run from repo root)

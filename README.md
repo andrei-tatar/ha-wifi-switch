@@ -16,7 +16,7 @@ You need [PlatformIO](https://platformio.org/).
 
 ```sh
 pio run                                          # build
-VERSION=1.2.3 pio run                            # build with a version number (default 0.0.1)
+VERSION=1.2.3 pio run                            # build with a set version (default: from git describe)
 pio run -t upload --upload-port <device>.local   # flash over the network
 pio device monitor                               # serial console, 115200 baud
 ```

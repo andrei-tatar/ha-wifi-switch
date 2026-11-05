@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.platformio
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
 
       - name: Set up Python
         uses: actions/setup-python@v7

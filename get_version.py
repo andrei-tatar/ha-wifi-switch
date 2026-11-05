@@ -1,14 +1,24 @@
 Import("env")
 import os
+import subprocess
 
-# Get the version number from the build environment.
-firmware_version = os.environ.get('VERSION', "")
 
-# Clean up the version number
-if firmware_version == "":
-  # When no version is specified default to "0.0.1" for
-  # compatibility with MobiFlight desktop app version checks.
-  firmware_version = "0.0.1"
+# Returns something like 1.15.0, 1.15.0-1-gab3e64b or 1.15.0-1-gab3e64b-dirty,
+# so a device shows which code it runs even when flashed from a local build.
+def version_from_git():
+  try:
+    return subprocess.check_output(
+      ["git", "describe", "--tags", "--always", "--dirty"],
+      cwd=env.subst("$PROJECT_DIR"),
+      stderr=subprocess.DEVNULL,
+      text=True,
+    ).strip()
+  except (OSError, subprocess.CalledProcessError):
+    return ""
+
+
+# VERSION takes priority: release builds use it to set the release's version.
+firmware_version = os.environ.get('VERSION', "") or version_from_git() or "0.0.0"
 
 # Strip any leading "v" that might be on the version and
 # any leading or trailing periods.
@@ -22,5 +32,5 @@ env.Append(CPPDEFINES=[
   f'BUILD_VERSION=\\"{firmware_version}\\"'
 ])
 
-# Set the output filename to the name of the board and the version
+# Set the output filename to the name of the environment
 env.Replace(PROGNAME=f'ha_switch_{env["PIOENV"]}')
