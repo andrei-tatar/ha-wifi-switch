@@ -100,8 +100,9 @@ uint16_t Qt1070::readRegisterU16(uint8_t address) const {
   _wire.endTransmission();
 
   _wire.requestFrom(QT_ADDR, 2U);
-  uint8_t value = _wire.read() << 8 | _wire.read();
-  return value;
+  uint8_t high = _wire.read();
+  uint8_t low = _wire.read();
+  return (uint16_t)high << 8 | low;
 }
 
 void Qt1070::useChannels(int8_t ch1, int8_t ch2, int8_t ch3) {

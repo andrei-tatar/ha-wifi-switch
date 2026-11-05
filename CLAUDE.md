@@ -46,7 +46,7 @@ Code in `lib/<name>/` is PlatformIO private libraries, included by bare header n
 
 ### Execution model
 
-`loop()` only runs `ArduinoOTA.handle()` and then sleeps for 50 ms so the CPU can idle. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll. MQTT callbacks run on the esp-mqtt task while it holds its API lock, and `publish` waits for that lock, so a role that shares state between the two must not publish while holding its own lock (see `SwitchBlinds::_lock`).
+`loop()` only runs `ArduinoOTA.handle()` and then sleeps for 50 ms so the CPU can idle. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll. MQTT callbacks run on the esp-mqtt task while it holds its API lock, and `publish` waits for that lock, so a role that shares state between the two must not publish while holding its own lock (see `SwitchBlinds::_lock` and `SwitchOnOff::_lock`).
 
 ### Configuration lifecycle
 
@@ -77,7 +77,7 @@ Empty payloads are ignored, because clearing `state/set` echoes one back.
 Command fields by role (`suspendInputs` works on all of them; it stops touch events but keeps LED feedback):
 
 - **dimmer:** `on`, `brightness`, and `for` (with `brightness`: hold it as a minimum for N seconds)
-- **switch:** `on` (bool, or an array with one entry per configured pin), `for` (auto-off seconds)
+- **switch:** `on` (bool, or an array with one entry per configured pin), `for` (auto-off seconds, per output; setting an output replaces its timer)
 - **blinds:** `openPercent`
 
 ### Hardware details

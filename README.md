@@ -149,8 +149,8 @@ mosquitto_pub -h <broker> -t ha-switch/<host>/state/set -m '{"on":true,"brightne
 | `dimmer` | `on` | Turn on or off |
 | `dimmer` | `brightness` | 1 to 100 |
 | `dimmer` | `for` | Used with `brightness`: hold that level as a minimum for this many seconds, even while off |
-| `switch` | `on` | `true` or `false` for all outputs, or an array with one value per output, such as `[true,false]` |
-| `switch` | `for` | Turn back off after this many seconds |
+| `switch` | `on` | `true` or `false` for all outputs, or an array with one value per output, such as `[true,false]`. `null` leaves that output as it is |
+| `switch` | `for` | Used with `on`: turn the outputs it switches on back off after this many seconds. Each output has its own timer, and setting an output replaces it. Without `for`, the output uses `resetAfter`. `0` means no timer |
 | `blinds` | `openPercent` | 0 (closed) to 100 (open) |
 
 ## HTTP API

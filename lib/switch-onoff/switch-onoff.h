@@ -4,6 +4,7 @@
 #include "io.h"
 #include "switch-base.h"
 #include <ArduinoJson.h>
+#include <mutex>
 
 class SwitchOnOff : public SwitchBase {
   Io &_io;
@@ -14,12 +15,19 @@ class SwitchOnOff : public SwitchBase {
       _blueTouchLevel;
   uint16_t _resetAfter;
   Ticker _ticker;
-  void updateLevels();
-  void updatePin(uint8_t index, bool newState);
-  void restoreState(JsonVariantConst state);
+  uint8_t _resetPinsMask = 0;  // outputs with a running timer
+  uint32_t _resetAt[IO_CNT];   // millis() when each of those turns off
+  // Guards outputs and timers: commands arrive on the MQTT task, touches and
+  // timers on the timer task. Never publish state while holding it, because the
+  // MQTT task holds the esp-mqtt API lock while waiting for this one.
+  mutable std::mutex _lock;
 
-  static void resetPins(SwitchOnOff *instance);
-  uint8_t _resetPinsMask;
+  void updateLevels();
+  void checkResetTimers();
+  void setResetTimer(uint8_t index, uint16_t seconds);
+  bool setOutput(uint8_t index, bool newState, uint16_t offAfterSeconds);
+  bool restoreState(JsonVariantConst state);
+  bool applyCommand(JsonVariantConst state);
 
 public:
   SwitchOnOff(Io &io);

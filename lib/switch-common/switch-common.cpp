@@ -52,28 +52,36 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
                                  const String host) {
   auto mqttConfig = config["mqtt"];
 
-  _mqttHost = mqttConfig["host"] | "";
-  _mqttPassword = mqttConfig["password"] | "";
-  _mqttUser = mqttConfig["user"] | "";
-  _mqttPort = mqttConfig["port"] | 1883;
+  String mqttHost = mqttConfig["host"] | "";
+  String mqttPassword = mqttConfig["password"] | "";
+  String mqttUser = mqttConfig["user"] | "";
+  uint16_t mqttPort = mqttConfig["port"] | 1883;
   String mqttPrefix = mqttConfig["prefix"] | "ha-switch";
   mqttPrefix += "/";
 
   // The client only reads its settings when it starts, so changes need a reboot.
-  String mqttSettings = _mqttHost + "\n" + String(_mqttPort) + "\n" + _mqttUser +
-                        "\n" + _mqttPassword + "\n" + mqttPrefix;
+  String mqttSettings = mqttHost + "\n" + String(mqttPort) + "\n" + mqttUser +
+                        "\n" + mqttPassword + "\n" + mqttPrefix;
+  bool isFirstCall = _mqttSettings.isEmpty();
   bool settingsChanged = mqttSettings != _mqttSettings;
   _mqttSettings = mqttSettings;
 
-  if (_mqttHost.length() && _mqttPassword.length() && _mqttUser.length() &&
-      _mqttPassword.length()) {
+  // Set up the client only once. It keeps every callback it's given, so repeating
+  // this would run each command again, and the topics are in use by other tasks.
+  if (!isFirstCall) {
+    return settingsChanged;
+  }
+
+  if (mqttHost.length() && mqttPassword.length() && mqttUser.length()) {
+    _mqttPassword = mqttPassword;
+    _mqttUser = mqttUser;
 
     _onlineTopic = mqttPrefix + host + "/online";
     _stateTopic = mqttPrefix + host + "/state";
     _stateSetTopic = _stateTopic + "/set";
     _debugTopic = mqttPrefix + host + "/debug";
 
-    _mqttUri = "mqtt://" + _mqttHost + ":" + String(_mqttPort);
+    _mqttUri = "mqtt://" + mqttHost + ":" + String(mqttPort);
     _mqttClientId = host;
 
     _mqtt.setServer(_mqttUri.c_str())
@@ -140,9 +148,6 @@ bool SwitchCommon::configureMqtt(const JsonVariantConst config,
         });
 
     _timer.attach_ms(SECS(1), SwitchCommon::handle, this);
-  } else {
-    _mqtt.disconnect();
-    _timer.detach();
   }
 
   return settingsChanged;

@@ -12,11 +12,9 @@ typedef std::function<void(JsonVariant state, bool isFromStoredState)>
 
 class SwitchCommon {
   Io &_io;
-  String _mqttHost;
   String _mqttUri;
   String _mqttPassword;
   String _mqttUser;
-  uint16_t _mqttPort;
   String _onlineTopic;
   String _stateTopic;
   String _stateSetTopic;
