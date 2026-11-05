@@ -86,7 +86,10 @@ void Io::handle(Io *instance) {
   }
 
   if (io._use == UseQt) {
-    pressed = io._qt.pressed();
+    // a failed read says nothing about the keys, so treat it as no change
+    if (!io._qt.pressed(pressed)) {
+      pressed = io._stablePressed;
+    }
 
     if (pressed != io._stablePressed) {
       io._stablePressed = pressed;

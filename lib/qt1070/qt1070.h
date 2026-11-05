@@ -15,6 +15,7 @@ private:
 
   void writeRegister(uint8_t address, uint8_t value) const;
   uint8_t readRegister(uint8_t address) const;
+  bool tryReadRegister(uint8_t address, uint8_t &value) const;
   uint16_t readRegisterU16(uint8_t address) const;
 
 public:
@@ -24,7 +25,7 @@ public:
   void useChannels(int8_t ch1 = -1, int8_t ch2 = -1, int8_t ch3 = -1);
   void begin(bool oneKeyAtATime = true);
   void calibrate() const;
-  uint8_t pressed() const;
+  bool pressed(uint8_t &keys) const; // false if the chip couldn't be read
   uint16_t signal(uint8_t index) const;
   uint16_t reference(uint8_t index) const;
 };

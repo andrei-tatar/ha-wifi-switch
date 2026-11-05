@@ -8,7 +8,7 @@
 #include <Ticker.h>
 
 typedef std::function<JsonDocument *()> ReadConfigHandler;
-typedef std::function<void(String config)> SetConfigHandler;
+typedef std::function<bool(String config)> SetConfigHandler;
 typedef std::function<void(JsonVariant doc)> AppendStatusHandler;
 
 class Web {

@@ -69,8 +69,11 @@ void Web::updateConfig(AsyncWebServerRequest *req, uint8_t *data, size_t len,
     str[total] = 0;
 
     if (_setConfig) {
-      _setConfig(str);
-      req->send(204);
+      if (_setConfig(str)) {
+        req->send(204);
+      } else {
+        req->send(400, "text/plain", "INVALID CONFIG");
+      }
     } else {
       req->send(500, "text/html", "NO SET HANDLER");
     }

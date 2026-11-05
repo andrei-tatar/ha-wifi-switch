@@ -46,13 +46,13 @@ Code in `lib/<name>/` is PlatformIO private libraries, included by bare header n
 
 ### Execution model
 
-`loop()` only runs `ArduinoOTA.handle()`. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll (`SwitchBlinds::changeMotor` does `delay()` between motor directions).
+`loop()` only runs `ArduinoOTA.handle()`. Everything else runs in `Ticker` callbacks and async web/MQTT callbacks. Tickers share the `esp_timer` task, so a blocking call in one stalls the others, including the 5 ms `Io` poll. MQTT callbacks run on the esp-mqtt task while it holds its API lock, and `publish` waits for that lock, so a role that shares state between the two must not publish while holding its own lock (see `SwitchBlinds::_lock`).
 
 ### Configuration lifecycle
 
-- `POST /api/config` replaces the whole stored JSON (no patching) and calls `applyConfiguration(false)` without rebooting.
+- `POST /api/config` replaces the whole stored JSON (no patching) and calls `applyConfiguration(false)` without rebooting. A body that isn't a JSON object is rejected with 400 and nothing is stored.
 - `configure()` therefore runs more than once. One-time setup is guarded by `_initialized`, while tunables such as LED levels are re-read on each call.
-- `configure()` returns `true` if a change only takes effect after restart (pins, hostname, `type`), which schedules a reboot after 1.5 s.
+- `configure()` returns `true` if a change only takes effect after restart (pins, hostname, `type`, MQTT settings), which schedules a reboot after 1.5 s.
 - Keep this contract when adding options: `Io::begin` and the role setup run once, so pin changes must request a reboot.
 
 `util/config/<device>.json` holds each device's config. The filename is the device's hostname. `apply_config.mjs` connects to `<device>.lan`, sets `mdns.host` from the filename, and copies `mqtt` from the device's current config, so these files deliberately contain neither `mdns` nor MQTT credentials. It then skips devices whose config already matches.
@@ -72,7 +72,7 @@ Topics are `<prefix>/<host>/...`, where `prefix` defaults to `ha-switch`. MQTT i
 
 Empty payloads are ignored, because clearing `state/set` echoes one back.
 
-**State restore on boot:** the device subscribes to its own retained `state` first. It applies that message with `isFromStoredState = true`, then unsubscribes and moves to `state/set`. If nothing arrives within 5 s of connecting, it does the same switch and publishes its current state. `SwitchBlinds` uses this to restore its position instead of moving the motor.
+**State restore on boot:** the device subscribes to its own retained `state` first. It applies that message with `isFromStoredState = true`, then unsubscribes and moves to `state/set`. If nothing arrives within 5 s of connecting, it does the same switch and publishes its current state. `SwitchBlinds` uses this to restore its position instead of moving the motor. `SwitchOnOff` leaves outputs off if they were on a timer (`resetAfter`, or marked in the state's `autoOff` bitmask), because the timer doesn't survive a reboot.
 
 Command fields by role (`suspendInputs` works on all of them; it stops touch events but keeps LED feedback):
 

@@ -94,8 +94,11 @@ void setup() {
       });
   web.onReadConfig([] { return configuration.read(); });
   web.onSetConfig([](String config) {
-    configuration.update(config);
+    if (!configuration.update(config)) {
+      return false;
+    }
     applyConfiguration(false);
+    return true;
   });
   web.begin(type);
 }

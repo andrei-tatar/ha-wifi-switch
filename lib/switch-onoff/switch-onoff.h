@@ -16,6 +16,7 @@ class SwitchOnOff : public SwitchBase {
   Ticker _ticker;
   void updateLevels();
   void updatePin(uint8_t index, bool newState);
+  void restoreState(JsonVariantConst state);
 
   static void resetPins(SwitchOnOff *instance);
   uint8_t _resetPinsMask;

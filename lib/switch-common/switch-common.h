@@ -22,6 +22,8 @@ class SwitchCommon {
   String _stateSetTopic;
   String _debugTopic;
   String _mqttClientId;
+  String _mqttSettings;
+  bool _mqttStarted = false;
   GetJsonStateHandler _getState;
   JsonStateChangedHandler _stateChanged;
   bool _updateFromStateOnBoot = true;
@@ -35,7 +37,7 @@ class SwitchCommon {
   uint32_t _lastStateUpdateSent = 0;
 
   bool configureIo(const JsonVariantConst config);
-  void configureMqtt(const JsonVariantConst config, String host);
+  bool configureMqtt(const JsonVariantConst config, String host);
   void unsubsribeFromState();
 
   static void handle(SwitchCommon *instance);

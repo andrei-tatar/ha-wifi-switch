@@ -49,7 +49,7 @@ bool SwitchCommon::configureIo(const JsonVariantConst config) {
   return pinsChanged;
 }
 
-void SwitchCommon::configureMqtt(const JsonVariantConst config,
+bool SwitchCommon::configureMqtt(const JsonVariantConst config,
                                  const String host) {
   auto mqttConfig = config["mqtt"];
 
@@ -59,6 +59,12 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
   _mqttPort = mqttConfig["port"] | 1883;
   String mqttPrefix = mqttConfig["prefix"] | "ha-switch";
   mqttPrefix += "/";
+
+  // The client only reads its settings when it starts, so changes need a reboot.
+  String mqttSettings = _mqttHost + "\n" + String(_mqttPort) + "\n" + _mqttUser +
+                        "\n" + _mqttPassword + "\n" + mqttPrefix;
+  bool settingsChanged = mqttSettings != _mqttSettings;
+  _mqttSettings = mqttSettings;
 
   if (_mqttHost.length() && _mqttPassword.length() && _mqttUser.length() &&
       _mqttPassword.length()) {
@@ -85,10 +91,11 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
           auto error = deserializeJson(stateUpdate, payload);
           if (error != DeserializationError::Code::Ok) {
             char debugMsg[512];
-            auto offset = snprintf(debugMsg, sizeof(debugMsg), "json err %d,tot %d:", error.code(), total);
+            auto offset = snprintf(debugMsg, sizeof(debugMsg), "json err %d,tot %u:", error.code(), (unsigned)total);
 
-            for (uint8_t i = 0; i < total; i++) {
-              offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset, "%02x", payload[i]);
+            // long payloads are cut off: each byte needs 2 digits, plus the terminator
+            for (size_t i = 0; i < total && offset + 3 <= (int)sizeof(debugMsg); i++) {
+              offset += snprintf(debugMsg + offset, sizeof(debugMsg) - offset, "%02x", (uint8_t)payload[i]);
             }
 
             _mqtt.publish(_debugTopic.c_str(), 0, false, debugMsg);
@@ -138,6 +145,8 @@ void SwitchCommon::configureMqtt(const JsonVariantConst config,
     _mqtt.disconnect();
     _timer.detach();
   }
+
+  return settingsChanged;
 }
 
 void SwitchCommon::handle(SwitchCommon *instance) {
@@ -145,11 +154,16 @@ void SwitchCommon::handle(SwitchCommon *instance) {
   auto now = millis();
   if (WiFi.isConnected()) {
     me._reconnectWifiSkips = 0;
-    if (!me._mqtt.connected()) {
+    // Start once and let esp-mqtt reconnect by itself. Calling connect() again
+    // waits for its API lock, which is held during connection attempts, and that
+    // would stall every Ticker while the broker is unreachable.
+    if (!me._mqttStarted) {
+      me._mqttStarted = true;
       me._mqtt.connect();
     }
 
-    if (me._connectedAt && now > me._connectedAt + 5000) {
+    if (me._connectedAt && me._mqtt.connected() &&
+        now > me._connectedAt + 5000) {
       me._connectedAt = 0;
       me.unsubsribeFromState();
       me.publishStateInternal();
@@ -225,8 +239,9 @@ bool SwitchCommon::configure(const JsonVariantConst config) {
     ArduinoOTA.end();
   }
 
-  configureMqtt(config, host);
-  return configureIo(config);
+  bool needsReboot = configureMqtt(config, host);
+  needsReboot |= configureIo(config);
+  return needsReboot;
 }
 
 void SwitchCommon::onGetState(GetJsonStateHandler getState) {

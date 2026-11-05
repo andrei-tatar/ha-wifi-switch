@@ -27,7 +27,7 @@ The firmware is written to `.pio/build/esp32/ha_switch_esp32.bin`. Publishing a 
 
 1. Flash the device over serial. Network flashing is the default, so change `upload_protocol` in `platformio.ini` for this step.
 2. Make sure Wi-Fi credentials are already stored in the device's flash. The firmware has no provisioning code and calls `WiFi.begin()` without credentials.
-3. Send the device a config (see below). Changing the type, pins, or hostname reboots it automatically.
+3. Send the device a config (see below). Changing the type, pins, hostname, or MQTT settings reboots it automatically.
 
 ## Configuration
 
@@ -38,7 +38,7 @@ curl http://<device>.local/api/config
 curl -X POST --data @config.json http://<device>.local/api/config
 ```
 
-**A POST replaces the entire config.** Include `mdns` and `mqtt` in what you send, or the device loses them.
+**A POST replaces the entire config.** Include `mdns` and `mqtt` in what you send, or the device loses them. A body that isn't a JSON object gets a 400 and the stored config is kept.
 
 Example dimmer config:
 
@@ -132,7 +132,7 @@ Topics are `<prefix>/<host>/<topic>`:
 | `reset-reason` | Device publishes | Reset reason code, sent on the first connection after boot |
 | `debug` | Device publishes | Details of messages that failed to parse |
 
-After booting, a device reads its own retained `state` to restore what it was doing, then starts listening on `state/set`.
+After booting, a device reads its own retained `state` to restore what it was doing, then starts listening on `state/set`. Switch outputs that were on a timer (`for` or `resetAfter`) stay off, because the timer doesn't survive a reboot. While any are running, `state` includes `autoOff`, a bitmask of those outputs.
 
 ### Commands
 

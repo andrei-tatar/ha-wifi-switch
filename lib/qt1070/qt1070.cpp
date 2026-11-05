@@ -79,6 +79,21 @@ uint8_t Qt1070::readRegister(uint8_t address) const {
   return value;
 }
 
+bool Qt1070::tryReadRegister(uint8_t address, uint8_t &value) const {
+  _wire.beginTransmission(QT_ADDR);
+  _wire.write(address);
+  if (_wire.endTransmission() != 0) {
+    return false;
+  }
+
+  if (_wire.requestFrom(QT_ADDR, 1U) != 1) {
+    return false;
+  }
+
+  value = _wire.read();
+  return true;
+}
+
 uint16_t Qt1070::readRegisterU16(uint8_t address) const {
   _wire.beginTransmission(QT_ADDR);
   _wire.write(address);
@@ -103,24 +118,24 @@ void Qt1070::calibrate() const {
   writeRegister(REG_CALIBRATE, 0xFF);
 }
 
-uint8_t Qt1070::pressed() const {
+bool Qt1070::pressed(uint8_t &keys) const {
+  keys = 0;
   if (!_initialized) {
-    return 0;
+    return true;
   }
 
-  uint8_t status = readRegister(REG_KEY_STATUS);
-  if (status == 0) {
-    return 0;
+  uint8_t status;
+  if (!tryReadRegister(REG_KEY_STATUS, status)) {
+    return false;
   }
 
-  uint8_t pressed = 0;
   for (uint8_t i = 0; i < CH_COUNT; i++) {
     if (_channels[i] != -1 && (status & (1 << _channels[i]))) {
-      pressed |= 1 << i;
+      keys |= 1 << i;
     }
   }
 
-  return pressed;
+  return true;
 }
 
 uint16_t Qt1070::signal(uint8_t index) const {

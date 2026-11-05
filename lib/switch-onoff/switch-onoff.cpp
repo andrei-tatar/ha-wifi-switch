@@ -58,10 +58,19 @@ void SwitchOnOff::updateLevels() {
 void SwitchOnOff::appendState(JsonVariant doc) const {
   if (_initialized) {
     auto state = doc["on"].to<JsonArray>();
+    uint8_t autoOff = 0;
     for (uint8_t i = 0; i < IO_CNT; i++) {
       if (_pins[i] != -1) {
         state.add(_state[i]);
+        if (_state[i] && (_resetPinsMask & (1 << i))) {
+          autoOff |= 1 << i;
+        }
       }
+    }
+
+    // bitmask by pin index, read back by restoreState()
+    if (autoOff) {
+      doc["autoOff"] = autoOff;
     }
   }
 }
@@ -93,8 +102,41 @@ void SwitchOnOff::updatePin(uint8_t index, bool newState) {
   }
 }
 
+// Outputs on a timer stay off after a reboot: the timer doesn't survive it, and
+// re-energizing a momentary output would fire it again (garage door, gate).
+void SwitchOnOff::restoreState(JsonVariantConst state) {
+  auto on = state["on"].as<JsonArrayConst>();
+  uint8_t autoOff = state["autoOff"] | 0;
+  uint8_t onIndex = 0;
+
+  suspendStateChanges();
+
+  for (uint8_t i = 0; i < IO_CNT; i++) {
+    if (_pins[i] != -1) {
+      auto stored = on[onIndex++];
+      if (stored.is<bool>()) {
+        bool newState = stored;
+        if (!newState || (!_resetAfter && !(autoOff & (1 << i)))) {
+          updatePin(i, newState);
+        }
+      }
+    }
+  }
+
+  if (hasPendingChanges()) {
+    updateLevels();
+  }
+
+  resumeStateChanges();
+}
+
 void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
   if (!_initialized) {
+    return;
+  }
+
+  if (isFromStoredState) {
+    restoreState(state);
     return;
   }
 
@@ -141,6 +183,7 @@ void SwitchOnOff::updateState(JsonVariantConst state, bool isFromStoredState) {
       _ticker.once_ms(afterSeconds * 1000, SwitchOnOff::resetPins, this);
     } else {
       _ticker.detach();
+      _resetPinsMask = 0;
     }
   }
 

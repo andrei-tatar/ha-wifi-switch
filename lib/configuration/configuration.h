@@ -11,7 +11,7 @@ private:
 public:
   void begin();
   JsonDocument *read();
-  void update(String json);
+  bool update(String json);
 };
 
 #endif

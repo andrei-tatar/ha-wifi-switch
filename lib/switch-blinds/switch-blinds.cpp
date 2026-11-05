@@ -6,6 +6,7 @@
 SwitchBlinds::SwitchBlinds(Io &io) : _io(io) {}
 
 bool SwitchBlinds::configure(const JsonVariantConst config) {
+  std::lock_guard<std::mutex> guard(_lock);
   bool needsReboot = false;
 
   int8_t pinOpen = config["pins"]["open"] | -1;
@@ -30,8 +31,9 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
         POLL_INTERVAL, [](SwitchBlinds *me) { me->update(); }, this);
 
     _io.onTouchDown([this](int8_t key) {
-      if (_motorState != Motor_Off) {
-        changeMotor(Motor_Off);
+      std::lock_guard<std::mutex> guard(_lock);
+      if (_motorState != Motor_Off || _pendingMotor != Motor_Off) {
+        haltMotor();
       } else if (key == 1) {
         setTargetPosition(0, true);
       } else if (key == 2) {
@@ -55,33 +57,62 @@ bool SwitchBlinds::configure(const JsonVariantConst config) {
   return needsReboot;
 }
 
-void SwitchBlinds::changeMotor(MotorState newState) {
-  if (newState == _motorState) {
+void SwitchBlinds::stopMotor() {
+  if (_motorState == Motor_Off) {
     return;
   }
 
-  if (_motorState != Motor_Off) {
-    digitalWrite(_pinOpen, LOW);
-    digitalWrite(_pinClose, LOW);
-    _position = getCurrentPosition(true);
-    _motorState = Motor_Off;
-    updateLevels();
+  digitalWrite(_pinOpen, LOW);
+  digitalWrite(_pinClose, LOW);
+  _position = getCurrentPosition(true);
+  _motorState = Motor_Off;
+  _stoppedAt = millis();
+  _restingAfterStop = true;
+  _stateChanged = true;
+  updateLevels();
+}
 
-    delay(_delayAfterOff);
+// Stops moving and stays put, also cancelling a move still waiting to start.
+void SwitchBlinds::haltMotor() {
+  stopMotor();
+  _pendingMotor = Motor_Off;
+  _targetPosition = _position;
+  _stateChanged = true;
+}
+
+void SwitchBlinds::requestMotor(MotorState newState) {
+  if (newState == _motorState) {
+    _pendingMotor = Motor_Off;
+    return;
   }
 
-  _motorState = newState;
+  stopMotor();
+  _pendingMotor = newState;
+  startPendingMotor();
+}
 
-  if (_motorState == Motor_Off) {
-    _targetPosition = _position;
-  } else if (_motorState == Motor_Opening) {
-    digitalWrite(_pinOpen, HIGH);
-    _motorChange = millis();
-  } else if (_motorState == Motor_Closing) {
-    digitalWrite(_pinClose, HIGH);
-    _motorChange = millis();
+// Starts the pending move once the pause after the last stop has passed. If it
+// hasn't yet, update() calls this again until it has.
+void SwitchBlinds::startPendingMotor() {
+  if (_pendingMotor == Motor_Off) {
+    return;
   }
 
+  if (_restingAfterStop) {
+    if (millis() - _stoppedAt < _delayAfterOff) {
+      return;
+    }
+    _restingAfterStop = false;
+  }
+
+  _motorState = _pendingMotor;
+  _pendingMotor = Motor_Off;
+
+  bool opening = _motorState == Motor_Opening;
+  digitalWrite(opening ? _pinClose : _pinOpen, LOW);
+  digitalWrite(opening ? _pinOpen : _pinClose, HIGH);
+  _motorChange = millis();
+  _stateChanged = true;
   updateLevels();
 }
 
@@ -114,23 +145,26 @@ int SwitchBlinds::getCurrentPosition(bool limit) const {
 }
 
 void SwitchBlinds::update() {
-  if (_motorState == Motor_Off) {
-    return;
-  }
+  bool notify;
+  {
+    std::lock_guard<std::mutex> guard(_lock);
 
-  if (_motorState == Motor_Opening) {
-    if (getCurrentPosition() <= _targetPosition) {
-      changeMotor(Motor_Off);
+    if ((_motorState == Motor_Opening &&
+         getCurrentPosition() <= _targetPosition) ||
+        (_motorState == Motor_Closing &&
+         getCurrentPosition() >= _targetPosition)) {
+      haltMotor();
     }
+
+    startPendingMotor();
+
+    notify = _stateChanged || _motorState != Motor_Off;
+    _stateChanged = false;
   }
 
-  if (_motorState == Motor_Closing) {
-    if (getCurrentPosition() >= _targetPosition) {
-      changeMotor(Motor_Off);
-    }
+  if (notify) {
+    raiseStateChanged();
   }
-
-  raiseStateChanged();
 }
 
 void SwitchBlinds::updateLevels() {
@@ -153,14 +187,18 @@ void SwitchBlinds::setTargetPosition(int target, bool addSafetyMargin) {
 
   _targetPosition = target;
 
-  if (getCurrentPosition() < _targetPosition) {
-    changeMotor(Motor_Closing);
-  } else if (getCurrentPosition() > _targetPosition) {
-    changeMotor(Motor_Opening);
+  int current = getCurrentPosition();
+  if (current < _targetPosition) {
+    requestMotor(Motor_Closing);
+  } else if (current > _targetPosition) {
+    requestMotor(Motor_Opening);
+  } else {
+    _pendingMotor = Motor_Off;
   }
 }
 
 void SwitchBlinds::appendState(JsonVariant doc) const {
+  std::lock_guard<std::mutex> guard(_lock);
   if (_initialized) {
     int openPercent = (int)(100 - _targetPosition * 100 / _maxPosition);
     if (openPercent < 0) {
@@ -177,11 +215,12 @@ void SwitchBlinds::appendState(JsonVariant doc) const {
 }
 
 void SwitchBlinds::updateState(JsonVariantConst state, bool isFromStoredState) {
+  std::lock_guard<std::mutex> guard(_lock);
   if (!_initialized)
     return;
 
   if (isFromStoredState) {
-    if (_motorState != Motor_Off)
+    if (_motorState != Motor_Off || _pendingMotor != Motor_Off)
       return;
 
     // restore state from JSON (most probably motor position hasn't changed)

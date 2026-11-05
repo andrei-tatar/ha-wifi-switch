@@ -15,7 +15,13 @@ JsonDocument *Configuration::read() {
   return config;
 }
 
-void Configuration::update(String json) {
+bool Configuration::update(String json) {
+  JsonDocument config;
+  if (deserializeJson(config, json) != DeserializationError::Ok ||
+      !config.is<JsonObject>()) {
+    return false;
+  }
+
   // TODO: patch existing config
-  preferences.putString(CONFIG_KEY, json);
+  return preferences.putString(CONFIG_KEY, json) == json.length();
 }
