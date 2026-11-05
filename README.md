@@ -80,12 +80,15 @@ Example dimmer config:
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `pins.zero`, `pins.triac` | | Zero-cross input and triac output. Both must be RTC-capable GPIOs |
+| `pins.zero`, `pins.triac` | | Zero-cross input and triac output. Both must be RTC-capable GPIOs, unless `onOffOnly` is set |
+| `onOffOnly` | `false` | For boards without the dimming changes: hold the triac output high or low, without using the zero-cross input. Changing it reboots the device |
 | `curve` | built in | Exactly 100 trigger delays in µs. `lib/dimmer/curve.js` generates these |
 | `levels.on.blue`, `levels.on.red`, `levels.on.touch` | `20`, `0`, `255` | LED levels while on |
 | `levels.off.blue`, `levels.off.red`, `levels.off.touch` | `0`, `20`, `255` | LED levels while off |
 
-Timing assumes 50 Hz mains and a modified dimmer board. The required changes are listed at the top of `lib/dimmer/dimmer.cpp`.
+Dimming timing assumes 50 Hz mains and a modified dimmer board. The required changes are listed at the top of `lib/dimmer/dimmer.cpp`.
+
+With `onOffOnly`, the light switches straight on or off, and `curve` and the brightness level have no effect on it. `brightness` is still accepted and reported in `state`. `brightness` with `for` keeps the light fully on for that time.
 
 ### Switch options (`switch`)
 

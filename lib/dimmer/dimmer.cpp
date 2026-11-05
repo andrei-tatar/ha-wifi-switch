@@ -12,6 +12,9 @@ HW changes to the off-the-shelf dimmer:
 - add bridge rectifier for zero detection (simpler code to handle each zero cross, instead of half of them)
 - change bridge resistor to 200k (from 150k) for better sensitivity
 
+Boards without these changes can't dim. Use them with onOffOnly, which holds the
+triac pin high or low and doesn't use zero detection or the ULP.
+
 */
 
 enum Labels {
@@ -106,17 +109,37 @@ Dimmer::Dimmer() : _pinZero(-1),
                                       1378, 1235, 1089, 941, 790, 637, 481, 323, 163, 0} {
 }
 
-bool Dimmer::usePins(int8_t pinZero, int8_t pinTriac) {
-  bool pinsChanged = _pinZero != pinZero || _pinTriac != pinTriac;
-  if (rtc_gpio_is_valid_gpio((gpio_num_t)pinZero) &&
-      rtc_gpio_is_valid_gpio((gpio_num_t)pinTriac)) {
+bool Dimmer::usePins(int8_t pinZero, int8_t pinTriac, bool onOffOnly) {
+  if (onOffOnly) {
+    pinZero = -1; // not used in this mode
+  }
+
+  bool pinsChanged = _pinZero != pinZero || _pinTriac != pinTriac ||
+                     _onOffOnly != onOffOnly;
+  bool valid = onOffOnly ? GPIO_IS_VALID_OUTPUT_GPIO(pinTriac)
+                         : rtc_gpio_is_valid_gpio((gpio_num_t)pinZero) &&
+                               rtc_gpio_is_valid_gpio((gpio_num_t)pinTriac);
+  if (valid) {
     _pinZero = pinZero;
     _pinTriac = pinTriac;
+    _onOffOnly = onOffOnly;
   }
   return pinsChanged;
 }
 
 void Dimmer::begin() {
+  if (_onOffOnly) {
+    // A software reset keeps the RTC domain, so this pin can still be routed to
+    // the ULP from the previous boot, and digitalWrite wouldn't reach it.
+    if (rtc_gpio_is_valid_gpio((gpio_num_t)_pinTriac)) {
+      rtc_gpio_deinit((gpio_num_t)_pinTriac);
+    }
+    pinMode(_pinTriac, OUTPUT);
+    digitalWrite(_pinTriac, LOW);
+    _ticker.attach_ms(10, Dimmer::handle, this);
+    return;
+  }
+
   if (_pinTriac == -1 || _pinZero == -1) {
     return;
   }
@@ -166,6 +189,12 @@ void Dimmer::handle(Dimmer *instance) {
   if (dimmer._minBrightnessUntil && millis() > dimmer._minBrightnessUntil) {
     dimmer._minBrightnessUntil = 0;
     dimmer._minBrightness = 1;
+  }
+
+  if (dimmer._onOffOnly) {
+    digitalWrite(dimmer._pinTriac,
+                 dimmer._on || dimmer._minBrightnessUntil ? HIGH : LOW);
+    return;
   }
 
   auto targetBrightness = dimmer._on

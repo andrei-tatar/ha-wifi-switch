@@ -9,7 +9,9 @@ bool SwitchDimmer::configure(const JsonVariantConst config) {
   int8_t zero = config["pins"]["zero"] | -1;
   int8_t triac = config["pins"]["triac"] | -1;
 
-  bool needsReboot = _dimmer.usePins(zero, triac);
+  bool onOffOnly = config["onOffOnly"] | false;
+
+  bool needsReboot = _dimmer.usePins(zero, triac, onOffOnly);
   if (!_initialized) {
     _dimmer.begin();
 

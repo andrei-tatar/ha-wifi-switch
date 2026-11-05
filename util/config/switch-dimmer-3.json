@@ -13,6 +13,7 @@
     "pins": {
       "zero": 25,
       "triac": 26
-    }
+    },
+    "onOffOnly": true
   }
 }

@@ -13,6 +13,7 @@ class Dimmer {
   uint8_t _currentBrightness = 0;
   uint8_t _minBrightness = 1;
   bool _on = false;
+  bool _onOffOnly = false;
   Ticker _ticker;
   static void handle(Dimmer *instance);
   uint16_t _curve[100];
@@ -23,7 +24,7 @@ class Dimmer {
 
 public:
   Dimmer();
-  bool usePins(int8_t pinZero, int8_t pinTriac);
+  bool usePins(int8_t pinZero, int8_t pinTriac, bool onOffOnly);
   void begin();
 
   uint8_t getBrightness() const;
